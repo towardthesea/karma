@@ -18,8 +18,6 @@
 /** 
 \defgroup karmaToolFinder Tool Solver Part of the KARMA Experiment
  
-@ingroup icub_karma  
- 
 This module finds the tool dimension employing nonlinear 
 optimization. 
 

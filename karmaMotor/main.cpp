@@ -18,8 +18,6 @@
 /** 
 \defgroup karmaMotor Motor Part of the KARMA Experiment
  
-@ingroup icub_karma  
- 
 Motor Control Module that allows the robot to push/draw the 
 object and explore a tool. 
 

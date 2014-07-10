@@ -18,8 +18,6 @@
 /**
  \defgroup karmaToolProjection Tool Projection Part of the KARMA Experiment
 
- @ingroup icub_karma
-
  This module finds the tooltip using motionCUT.
 
  \section intro_sec Description

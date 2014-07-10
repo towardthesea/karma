@@ -18,8 +18,6 @@
 /** 
 \defgroup karmaLearn Learning module of the KARMA Experiment
  
-@ingroup icub_karma  
- 
 Machine Learning Module that allows the robot to learn online 
 and predict a one-to-one map.
 
