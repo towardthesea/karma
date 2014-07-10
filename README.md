@@ -1,7 +1,7 @@
 KARMA
 =====
 
-Contain modules for experimenting affordance learning with the iCub.
+Modules for experimenting affordance learning with the iCub.
 
 ## Installation
 
