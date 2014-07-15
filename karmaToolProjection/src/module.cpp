@@ -173,6 +173,13 @@ void Manager::processBlobs(Bottle &b, cv::Mat &dest, lineData *lineDetails)
         points.at<float>(i,0) = (float) b.get(i).asList()->get(0).asInt();
         points.at<float>(i,1) = (float) b.get(i).asList()->get(1).asInt();
     }
+
+    if (sampleCount<clusterCount)
+    {
+        printf("sampleCount < clusterCount!\n");
+        return;
+    }
+    
 #ifdef KMEANS_WITH_POINTER
     kmeans(points, clusterCount, labels, TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0), 3, KMEANS_PP_CENTERS, &centers);
 #else
@@ -210,7 +217,6 @@ void Manager::processBlobs(Bottle &b, cv::Mat &dest, lineData *lineDetails)
     }
     else
     {
-       
         double pow1 = pow( fabs((double)pts[1].x - (double)pts[0].x), 2);
         double pow2 = pow( fabs((double)pts[1].y - (double)pts[0].y), 2);
         double lenAB = sqrt( pow1 + pow2 );
