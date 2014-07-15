@@ -801,7 +801,7 @@ protected:
             e=flipHand-pos;
         }
 
-        ivel->velocityMove(4,70.0*sign(e));
+        ivel->velocityMove(4,120.0*sign(e));
     }
 
     /************************************************************************/
@@ -831,8 +831,8 @@ protected:
         }
 
         iGaze->setSaccadesStatus(false);
-        iGaze->setNeckTrajTime(1.5);
-        iGaze->setEyesTrajTime(0.7);
+        iGaze->setNeckTrajTime(2.5);
+        iGaze->setEyesTrajTime(1.5);
         handUsed=arm;   // this triggers the hand shaking
 
         // gaze robustly at the tool tip
@@ -868,9 +868,6 @@ protected:
 
             Time::delay(0.02);
         }
-
-        iGaze->setNeckTrajTime(2.5);
-        iGaze->setEyesTrajTime(1.5);
 
         // gather sufficient information
         Bottle command,reply;
@@ -1088,7 +1085,7 @@ public:
 
         interrupting=false;
         handUsed="null";
-        flipHand=8.0;
+        flipHand=6.0;
 
         pushHand="selectable";
         toolFrame=eye(4,4);

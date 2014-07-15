@@ -49,6 +49,7 @@
         </module>
         <module>
                 <name>motionCUT</name>
+                <parameters>--recogThres 0.007</parameters>
                 <node>node3</node>
                 <tag>motionDetector</tag>
         </module>
