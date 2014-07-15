@@ -833,6 +833,14 @@ protected:
         iGaze->setSaccadesStatus(false);
         iGaze->setNeckTrajTime(2.5);
         iGaze->setEyesTrajTime(1.5);
+
+        // put the shaking joint in velocity mode
+        IControlMode2 *imode;
+        if (arm=="left")
+            driverHL.view(imode);
+        else
+            driverHR.view(imode);
+        imode->setControlMode(4,VOCAB_CM_VELOCITY);
         handUsed=arm;   // this triggers the hand shaking
 
         // gaze robustly at the tool tip
