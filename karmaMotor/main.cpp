@@ -951,7 +951,7 @@ protected:
         R(1,2)=-1.0;
         R(3,3)=+1.0;
         Vector r(4,0.0); r[0]=-1.0;
-        Vector xd(3),od;
+        Vector xd(3,0.0),od;
         Vector offset(3,0.0); offset[2]=0.1;
 
         // point 1
@@ -991,6 +991,17 @@ protected:
         xd[2]=0.1;
         offset[1]=(arm=="left")?0.1:-0.1;
         moveTool(arm,eye,xd,od,offset,25);
+
+        // point 6
+        xd[0]=-0.35;
+        xd[1]=xd[2]=0.0;
+        Vector r1(4,0.0); r1[2]=(arm=="left")?-1.0:1.0; r1[3]=CTRL_DEG2RAD*30.0;
+        Vector r2(4,0.0); r2[0]=(arm=="left")?1.0:-1.0; r2[3]=CTRL_DEG2RAD*30.0;
+        od=dcm2axis(axis2dcm(r2)*axis2dcm(r1)*R);
+        offset[0]=0;
+        offset[1]=(arm=="left")?-0.1:0.1;
+        offset[2]=0.1;
+        moveTool(arm,eye,xd,od,offset,50);
 
         // solving
         command.clear();
