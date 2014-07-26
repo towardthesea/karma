@@ -146,7 +146,8 @@ protected:
 
     string handUsed;
     bool interrupting;
-    double flipHand;
+    double flip_hand;
+    int shake_joint;
 
     bool elbow_set;
     double elbow_height,elbow_weight;
@@ -791,17 +792,17 @@ protected:
         }
 
         double pos;
-        ienc->getEncoder(4,&pos);
+        ienc->getEncoder(shake_joint,&pos);
 
-        double e=flipHand-pos;
-        if ((flipHand>0.0) && (e<0.0) ||
-            (flipHand<0.0) && (e>0.0))
+        double e=flip_hand-pos;
+        if ((flip_hand>0.0) && (e<0.0) ||
+            (flip_hand<0.0) && (e>0.0))
         {
-            flipHand=-flipHand;
-            e=flipHand-pos;
+            flip_hand=-flip_hand;
+            e=flip_hand-pos;
         }
 
-        ivel->velocityMove(4,120.0*sign(e));
+        ivel->velocityMove(shake_joint,120.0*sign(e));
     }
 
     /************************************************************************/
@@ -840,7 +841,7 @@ protected:
             driverHL.view(imode);
         else
             driverHR.view(imode);
-        imode->setControlMode(4,VOCAB_CM_VELOCITY);
+        imode->setControlMode(shake_joint,VOCAB_CM_VELOCITY);
         handUsed=arm;   // this triggers the hand shaking
 
         // gaze robustly at the tool tip
@@ -958,6 +959,7 @@ protected:
         r[3]=0.0;
         od=dcm2axis(axis2dcm(r)*R);
         xd[0]=-0.35;
+        shake_joint=4;
         moveTool(arm,eye,xd,od,offset,25);
 
         // point 2
@@ -1001,6 +1003,7 @@ protected:
         offset[0]=0;
         offset[1]=(arm=="left")?-0.1:0.1;
         offset[2]=0.1;
+        shake_joint=6;
         moveTool(arm,eye,xd,od,offset,50);
 
         // solving
@@ -1104,7 +1107,7 @@ public:
 
         interrupting=false;
         handUsed="null";
-        flipHand=6.0;
+        flip_hand=6.0;
 
         pushHand="selectable";
         toolFrame=eye(4,4);
