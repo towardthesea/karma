@@ -998,8 +998,8 @@ protected:
         xd[0]=-0.35;
         xd[1]=(arm=="left")?-0.1:0.1;
         xd[2]=0.0;
-        Vector r1(4,0.0); r1[2]=(arm=="left")?-1.0:1.0; r1[3]=CTRL_DEG2RAD*30.0;
-        Vector r2(4,0.0); r2[0]=(arm=="left")?1.0:-1.0; r2[3]=CTRL_DEG2RAD*30.0;
+        Vector r1(4,0.0); r1[2]=(arm=="left")?-1.0:1.0; r1[3]=CTRL_DEG2RAD*45.0;
+        Vector r2(4,0.0); r2[0]=(arm=="left")?1.0:-1.0; r2[3]=CTRL_DEG2RAD*45.0;
         od=dcm2axis(axis2dcm(r2)*axis2dcm(r1)*R);
         offset[0]=0;
         offset[1]=(arm=="left")?-0.05:0.05;
