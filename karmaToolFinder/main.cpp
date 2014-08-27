@@ -476,9 +476,9 @@ protected:
     bool               enabled;
 
     BufferedPort<ImageOf<PixelBgr> > imgInPort;
-    Port                             imgOutPort;
+    BufferedPort<ImageOf<PixelBgr> > imgOutPort;
     Port                             dataInPort;
-    Port                             logPort;
+    BufferedPort<Vector>             logPort;
 
     /************************************************************************/
     bool read(ConnectionReader &connection)
@@ -511,7 +511,9 @@ protected:
 
             if (logPort.getOutputCount()>0)
             {
-                Vector log=p;
+                Vector &log=logPort.prepare();
+
+                log=p;
                 for (int i=0; i<H.rows(); i++)
                     log=cat(log,H.getRow(i));
                 for (int i=0; i<Prj.rows(); i++)
@@ -521,7 +523,7 @@ protected:
                 for (int i=0; i<He.rows(); i++)
                     log=cat(log,He.getRow(i));
 
-                logPort.write(log);
+                logPort.write();
             }
 
             mutex.wait();
@@ -827,7 +829,8 @@ public:
                 tip.addInt(point_t.x);
                 tip.addInt(point_t.y);
 
-                imgOutPort.write(*pImgBgrIn);
+                imgOutPort.prepare()=*pImgBgrIn;
+                imgOutPort.write();
             }
         }
 

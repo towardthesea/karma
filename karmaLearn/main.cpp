@@ -144,7 +144,7 @@ protected:
 
     Semaphore mutex;
     RpcServer rpcPort;
-    Port      plotPort;
+    BufferedPort<ImageOf<PixelMono> > plotPort;
 
     /************************************************************************/
     IMachineLearner *createLearner()
@@ -361,7 +361,8 @@ protected:
 
             if (predict(plotItem,input,output,variance))
             {
-                ImageOf<PixelMono> img; img.resize(320,240);
+                ImageOf<PixelMono> &img=plotPort.prepare();
+                img.resize(320,240);
                 for (int x=0; x<img.width(); x++)
                     for (int y=0; y<img.height(); y++)
                         img(x,y)=255;
@@ -416,7 +417,7 @@ protected:
                     pold=p;
                 }
 
-                plotPort.write(img);
+                plotPort.write();
             }
         }
     }
