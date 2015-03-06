@@ -609,19 +609,10 @@ protected:
         H1=H0*H1;
 
         // apply final axes
-        Matrix R(3,3);
-        if (iCartCtrl==iCartCtrlR)
-        {
-            R(0,0)=-1.0;
-            R(2,1)=-1.0;
-            R(1,2)=-1.0;
-        }
-        else
-        {
-            R(0,0)=-1.0;
-            R(2,1)=-1.0;
-            R(1,2)=-1.0;
-        }
+        Matrix R(3,3); R.zero();
+        R(0,0)=-1.0;
+        R(2,1)=-1.0;
+        R(1,2)=-1.0;
 
         H1.setSubmatrix(R,0,0);
         H2.setSubmatrix(R,0,0);
