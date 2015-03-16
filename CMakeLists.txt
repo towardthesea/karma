@@ -9,12 +9,7 @@ find_package(ICUBcontrib)
 list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
 include(ICUBcontribHelpers)
 
-add_subdirectory(karmaManager)
-add_subdirectory(karmaMotor)
-add_subdirectory(karmaLearn)
-add_subdirectory(karmaToolProjection)
-add_subdirectory(karmaToolFinder)
+add_subdirectory(src)
 add_subdirectory(app)
 
 icubcontrib_add_uninstall_target()
-
