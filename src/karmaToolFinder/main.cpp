@@ -31,7 +31,6 @@ to the hand reference frame.
  
 \section lib_sec Libraries 
 - YARP libraries. 
-- icubmod library. 
 - IPOPT library. 
 - OpenCV library.  
 
@@ -113,8 +112,6 @@ Windows, Linux
 #include <IpIpoptApplication.hpp>
 
 #include <cv.h>
-
-YARP_DECLARE_DEVICES(icubmod)
 
 using namespace std;
 using namespace yarp::os;
@@ -872,8 +869,6 @@ int main(int argc, char *argv[])
         printf("YARP server not available!\n");
         return -1;
     }
-
-    YARP_REGISTER_DEVICES(icubmod)
 
     ResourceFinder rf;
     rf.setVerbose(true);
