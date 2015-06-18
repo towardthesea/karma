@@ -19,6 +19,7 @@
 #define __MODULE_H__
 
 #include <string>
+#include <map>
 
 #include <yarp/os/Time.h>
 #include <yarp/os/Semaphore.h>
