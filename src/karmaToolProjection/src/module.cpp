@@ -15,7 +15,8 @@
  * Public License for more details
 */
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
+
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 #include "iCub/module.h"
@@ -152,7 +153,7 @@ void Manager::processMotionPoints(Bottle &b)
     //fprintf(stdout,"done1 with data %d %d\n", imgClean.cols, imgClean.rows);
     outImg.resize( imgClean.cols, imgClean.rows );
     IplImage ipl_img = imgClean;
-    cvCopyImage(&ipl_img, (IplImage*)outImg.getIplImage());
+    cvCopy(&ipl_img, (IplImage*)outImg.getIplImage());
     imgOutPort.prepare() = outImg;
     imgOutPort.write();
     //delete[] outImg;
