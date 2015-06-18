@@ -20,6 +20,8 @@
 
 #include <string>
 
+#include "opencv2/opencv.hpp"
+
 #include <yarp/os/Time.h>
 #include <yarp/os/Semaphore.h>
 #include <yarp/os/RFModule.h>
@@ -29,10 +31,6 @@
 #include <yarp/os/Port.h>
 #include <yarp/sig/Image.h>
 #include <yarp/sig/Vector.h>
-
-#include <cv.h>
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/core/core.hpp"
 
 #include "iCub/utils.h"
 
