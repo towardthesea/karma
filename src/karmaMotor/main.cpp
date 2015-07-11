@@ -819,7 +819,7 @@ protected:
             iCartCtrl->waitMotionDone(0.1);
         }
 
-        iGaze->setSaccadesStatus(false);
+        iGaze->setSaccadesMode(false);
         iGaze->setNeckTrajTime(2.5);
         iGaze->setEyesTrajTime(1.5);
 
