@@ -24,6 +24,10 @@ set(folder_source main.cpp)
 source_group("Source Files" FILES ${folder_source})
 
 include_directories(${YARP_INCLUDE_DIRS} ${ICUB_INCLUDE_DIRS} ${IPOPT_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+
+add_definitions(${IPOPT_DEFINITIONS})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${IPOPT_LINKER_FLAGS}")
+
 add_executable(${PROJECTNAME} ${folder_source})
 target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${IPOPT_LIBRARIES} ${OpenCV_LIBRARIES})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
