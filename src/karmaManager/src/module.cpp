@@ -16,11 +16,15 @@
 */
 
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
+#include <limits>
+
+#include <gsl/gsl_math.h>
+
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
+
 #include "iCub/module.h"
-#include <gsl/gsl_math.h>
 
 using namespace std;
 using namespace yarp::os;
@@ -1657,7 +1661,7 @@ CvPoint Manager::getBlobCOG(const Bottle &blobs, const int i)
 Bottle Manager::findClosestBlob(const Bottle &blobs, const CvPoint &loc)
 {
     int ret=RET_INVALID;
-    double min_d2=1e9;
+    double min_d2=std::numeric_limits<double>::max();
     Bottle pointReturn;
     pointReturn.clear();
     for (int i=0; i<blobs.size(); i++)
