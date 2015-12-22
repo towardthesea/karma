@@ -104,7 +104,7 @@ Windows, Linux
 \author Ugo Pattacini
 */ 
 
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <algorithm>
 
