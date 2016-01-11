@@ -111,7 +111,7 @@ Windows, Linux
 #include <IpTNLP.hpp>
 #include <IpIpoptApplication.hpp>
 
-#include <cv.h>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 using namespace yarp::os;
