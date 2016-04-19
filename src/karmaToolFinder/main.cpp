@@ -489,12 +489,10 @@ protected:
                 igaze->getRightEyePose(xe,oe);
 
             Matrix Ha=axis2dcm(oa);
-            xa.push_back(1.0);
-            Ha.setCol(3,xa);
+            Ha.setSubcol(xa,0,3);
 
             Matrix He=axis2dcm(oe);
-            xe.push_back(1.0);
-            He.setCol(3,xe);
+            He.setSubcol(xe,0,3);
 
             Matrix H=Prj*SE3inv(He)*Ha;
             Vector p(2);
@@ -777,8 +775,7 @@ public:
                 iarm->getPose(xa,oa);
 
                 Matrix Ha=axis2dcm(oa);
-                xa.push_back(1.0);
-                Ha.setCol(3,xa);
+                Ha.setSubcol(xa,0,3);
 
                 Vector v(4,0.0); v[3]=1.0;
                 Vector c=Ha*v;
