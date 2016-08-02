@@ -110,7 +110,6 @@ Windows, Linux
 #include <map>
 #include <algorithm>
 
-#include <gsl/gsl_math.h>
 #include <opencv2/opencv.hpp>
 
 #include <yarp/os/all.h>

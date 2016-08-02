@@ -20,8 +20,6 @@
 #include <cstdio>
 #include <limits>
 
-#include <gsl/gsl_math.h>
-
 #include <yarp/math/Rand.h>
 #include <yarp/math/Math.h>
 

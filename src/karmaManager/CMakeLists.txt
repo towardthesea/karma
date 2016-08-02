@@ -13,7 +13,6 @@ list(APPEND CMAKE_MODULE_PATH ${ICUB_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(OpenCV)
-find_package(GSL)
 
 find_package(ICUBcontrib)
 list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
@@ -24,7 +23,6 @@ icubcontrib_set_default_prefix()
 include_directories(${PROJECT_SOURCE_DIR}/include
                     ${ctrlLib_INCLUDE_DIRS}
                     ${OpenCV_INCLUDE_DIRS} 
-                    ${GSL_INCLUDE_DIRS}
                     ${YARP_INCLUDE_DIRS}
                     )
 
@@ -39,6 +37,6 @@ source_group("Header Files" FILES ${folder_header})
 # add executables and link libraries.
 add_definitions(-D_USE_MATH_DEFINES)
 add_executable(${PROJECTNAME} ${folder_header} ${folder_source})
-target_link_libraries(${PROJECTNAME} ${OpenCV_LIBRARIES} ${GSL_LIBRARIES} ${YARP_LIBRARIES})
+target_link_libraries(${PROJECTNAME} ${OpenCV_LIBRARIES} ${YARP_LIBRARIES})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 
