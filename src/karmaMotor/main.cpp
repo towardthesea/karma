@@ -102,6 +102,7 @@ implemented) is running.
 Windows, Linux
 
 \author Ugo Pattacini
+\author Phuong Nguyen (constributor)
 */ 
 
 #include <cstdio>
@@ -112,6 +113,7 @@ Windows, Linux
 #include <yarp/dev/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
+#include <yarp/os/Time.h>
 
 #include <iCub/ctrl/math.h>
 
@@ -133,10 +135,25 @@ protected:
     PolyDriver driverHL;
     PolyDriver driverHR;
 
-    IGazeControl      *iGaze;
-    ICartesianControl *iCartCtrlL;
-    ICartesianControl *iCartCtrlR;
-    ICartesianControl *iCartCtrl;
+    IGazeControl        *iGaze;
+    ICartesianControl   *iCartCtrlL;
+    ICartesianControl   *iCartCtrlR;
+    ICartesianControl   *iCartCtrl;
+
+    IPositionControl    *posCtrlR;
+    IPositionControl    *posCtrlL;
+    IPositionControl    *posCtrl;
+    IEncoders           *encsR;
+    IEncoders           *encsL;
+    IEncoders           *encs;
+    IControlMode2       *ctrlModeR;
+    IControlMode2       *ctrlModeL;
+
+
+    Vector encodersR, encodersL;
+    Vector commandR, commandL, command;
+    double timeActions;
+    double handAngle;
 
     string pushHand;
     Matrix toolFrame;
@@ -307,12 +324,256 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('t','i','m','e'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            if (payload.get(0).asDouble()>=0.0)
+                            {
+                                timeActions = payload.get(0).asDouble();
+                                reply.addVocab(ack);
+                            }
+                            else
+                            {
+                                reply.addVocab(nack);
+                                reply.addString("motion time has to be positive!!!");
+                            }
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(timeActions);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
+            case VOCAB4('a','n','g','l'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            handAngle = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(handAngle);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
+            case VOCAB4('h','e','l','p'):
+            {
+                reply.addVocab(Vocab::encode("many"));
+                reply.addString("Available commands are:");
+                reply.addString("push - [push] cx cy cz theta radius - The object is pushed from the point at angle theta (deg) on the circle of radius (in m), centered at objects coordinates (cx,cy,cz) and contained in the x-y plane.");
+                reply.addString("draw/pull - [draw]/[pull] cx cy cz theta radius dist - Pulls the object dist (in cm) from the point at angle theta (deg) on the circle of radius (in m), centered at objects coordinates (cx,cy,cz).");
+                reply.addString("virtual draw/pull - [vdra]/[vpul] cx cy cz theta radius dist - Simulates the draw without performing any movement in order to test the quality of the action.");
+
+                reply.addString("find - [find] arm eye - An exploration is performed which aims at finding the tool dimension.");
+                reply.addString("tool-attach - [tool] [attach] arm x y z ");
+                reply.addString("time-set - [time] [set] time (s)");
+                reply.addString("time-get - [time] [get]");
+                reply.addString("angle-set - [hand] [set] angle (deg)");
+                reply.addString("angle-get - [hand] [get]");
+                reply.addString("help - produces this help.");
+                reply.addVocab(ack);
+                break;
+            }
+
+            //-----------------
             default:
                 interrupting=false;
                 return RFModule::respond(command,reply);
         }
 
         interrupting=false;
+        return true;
+    }
+
+    /************************************************************************/
+    void initHandCtrl()
+    {
+        int nj=0;
+        Vector tmp;
+        int i;
+
+        // Right hand
+        posCtrlR->getAxes(&nj);
+        encodersR.resize(nj);
+        tmp.resize(nj);
+        commandR.resize(nj);
+
+        for (i = 0; i < nj; i++) {
+             tmp[i] = 50.0;
+        }
+        posCtrlR->setRefAccelerations(tmp.data());
+
+        for (i = 0; i < nj; i++) {
+            tmp[i] = 10.0;
+            posCtrlR->setRefSpeed(i, tmp[i]);
+        }
+
+        // Left hand
+        posCtrlL->getAxes(&nj);
+        encodersL.resize(nj);
+        tmp.resize(nj);
+        commandL.resize(nj);
+
+        for (i = 0; i < nj; i++) {
+             tmp[i] = 50.0;
+        }
+        posCtrlL->setRefAccelerations(tmp.data());
+
+        for (i = 0; i < nj; i++) {
+            tmp[i] = 10.0;
+            posCtrlL->setRefSpeed(i, tmp[i]);
+        }
+    }
+
+    /************************************************************************/
+    bool prepareHandForPull(const string &armType)
+    {
+        if (armType =="left")
+        {
+            printf("left hand \n");
+            for (int i=11; i <encodersL.size(); i ++)
+            {
+                ctrlModeL->setPositionMode(i);
+                int mode;
+                ctrlModeL->getControlMode(i,&mode);
+                printf("ctrlMode of joint %d: ",i);
+                switch (mode)
+                {
+                    case VOCAB_CM_IDLE:            printf("IDLE     ");         break;
+                    case VOCAB_CM_POSITION:        printf("POSITION ");         break;
+                    case VOCAB_CM_POSITION_DIRECT: printf("POSITION DIRECT ");  break;
+                    case VOCAB_CM_VELOCITY:        printf("VELOCITY ");         break;
+                    case VOCAB_CM_MIXED:           printf("MIXED POS/VEL");     break;
+                    case VOCAB_CM_TORQUE:          printf("TORQUE   ");         break;
+                    case VOCAB_CM_OPENLOOP:        printf("OPENLOOP ");         break;
+                    default:
+                    case VOCAB_CM_UNKNOWN:         printf("UNKNOWN  ");         break;
+                }
+                cout<<endl;
+            }
+            posCtrl = posCtrlL;
+            encsL->getEncoders(encodersL.data());
+            command = encodersL;
+        }
+        else if (armType == "right")
+        {
+            printf("right hand \n");
+            for (int i=11; i <encodersR.size(); i ++)
+            {
+                ctrlModeR->setPositionMode(i);
+                int mode;
+                ctrlModeR->getControlMode(i,&mode);
+                printf("ctrlMode of joint %d: ",i);
+                switch (mode)
+                {
+                    case VOCAB_CM_IDLE:            printf("IDLE     ");         break;
+                    case VOCAB_CM_POSITION:        printf("POSITION ");         break;
+                    case VOCAB_CM_POSITION_DIRECT: printf("POSITION DIRECT ");  break;
+                    case VOCAB_CM_VELOCITY:        printf("VELOCITY ");         break;
+                    case VOCAB_CM_MIXED:           printf("MIXED POS/VEL");     break;
+                    case VOCAB_CM_TORQUE:          printf("TORQUE   ");         break;
+                    case VOCAB_CM_OPENLOOP:        printf("OPENLOOP ");         break;
+                    default:
+                    case VOCAB_CM_UNKNOWN:         printf("UNKNOWN  ");         break;
+                }
+                cout<<endl;
+            }
+            posCtrl = posCtrlR;
+            encsR->getEncoders(encodersR.data());
+            command = encodersR;
+
+        }
+
+        if (command.size()>=16)
+        {
+            command[11] = 20;
+            command[12] = 60;
+            command[13] = 30;
+            command[14] = 60;
+            command[15] = 90;
+        }
+
+        printf("move fingers \n");
+        posCtrl->positionMove(command.data());
+        yarp::os::Time::delay(2.0);
+
+//        bool done = false;
+//        while(!done)
+//        {
+//            if (armType == "left")
+//                posCtrlL->checkMotionDone(&done);
+//            else
+//                posCtrlR->checkMotionDone(&done);
+//            yarp::os::Time::delay(0.05);
+//        }
+//        return done;
+
+        return true;
+    }
+
+    /***************************************************************/
+    bool restoreHand(const string& armType)
+    {
+        if (armType =="left")
+        {
+            for (int i=11; i <encodersL.size(); i ++)
+            {
+                ctrlModeL->setPositionMode(i);
+            }
+            posCtrl = posCtrlL;
+            command = encodersL;
+        }
+        else if (armType == "right")
+        {
+            for (int i=11; i <encodersR.size(); i ++)
+            {
+                ctrlModeR->setPositionMode(i);
+            }
+            posCtrl = posCtrlR;
+            command = encodersR;
+        }
+
+        posCtrl->positionMove(command.data());
+        yarp::os::Time::delay(2.0);
+
+//        bool done = false;
+//        while(!done)
+//        {
+//            if (armType == "left")
+//                posCtrlL->checkMotionDone(&done);
+//            else
+//                posCtrlR->checkMotionDone(&done);
+//            yarp::os::Time::delay(0.05);
+//        }
+//        return done;
         return true;
     }
 
@@ -516,14 +777,14 @@ protected:
             Vector x=*xd+offs;
 
             printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(x,*od,1.0);
+            iCartCtrl->goToPoseSync(x,*od,timeActions);
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
 
         if (!interrupting)
         {
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(*xd,*od,1.0);
+            iCartCtrl->goToPoseSync(*xd,*od,timeActions);
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
 
@@ -531,12 +792,14 @@ protected:
         if (((fabs(theta)<10.0) || (fabs(theta-180.0)<10.0)))
         {
             rmin=0.04; rmax=0.18;
-            tmin=0.40; tmax=0.60;
+//            tmin=0.40; tmax=0.60;
+            tmin=1.20; tmax=1.80;
         }
         else
         {
             rmin=0.04; rmax=0.18;
-            tmin=0.50; tmax=0.80;
+//            tmin=0.50; tmax=0.80;
+            tmin=1.50; tmax=2.40;
         }
 
         // safe guard for using the tool
@@ -565,7 +828,7 @@ protected:
         if (!interrupting)
         {
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(*xd,*od,1.0);
+            iCartCtrl->goToPoseSync(*xd,*od,2.0);
             iCartCtrl->waitMotionDone(0.1,2.0);
         }
         
@@ -601,7 +864,7 @@ protected:
         Matrix H2=eye(4,4);
         H2(1,3)=-dist;
 
-        // go back into root frame
+        // convert (go back) into root frame
         H2=H0*H1*H2;
         H1=H0*H1;
 
@@ -624,18 +887,32 @@ protected:
         printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
         printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
+        printf("armType: %s\n", armType.c_str());
+        printf("pushHand: %s\n", pushHand.c_str());
         // choose the arm
+        string pushHand0 = pushHand;
         if (armType=="selectable")
         {
-            if (xd1[1]>=0.0)
+//            if (xd1[1]>=0.0)
+            double yObj = c[1]+radius*_c;
+            printf("yObj = %f\n",yObj);
+            if (yObj>=0)
+            {
                 iCartCtrl=iCartCtrlR;
+                pushHand = "right";
+            }
             else
+            {
                 iCartCtrl=iCartCtrlL;
+                pushHand = "left";
+            }
         }
         else if (armType=="left")
             iCartCtrl=iCartCtrlL;
-        else
+        else if (armType=="right")
             iCartCtrl=iCartCtrlR;
+        printf("armType: %s\n", armType.c_str());
+        printf("pushHand: %s\n", pushHand.c_str());
 
         // recover the original place: do translation and rotation
         if (c[1]!=0.0)
@@ -668,24 +945,50 @@ protected:
         printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
         printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
-        // apply tool (if any)
-        Matrix invFrame=SE3inv(frame);
-        H1=H1*invFrame;
-        H2=H2*invFrame;
+//        // apply tool (if any)
+//        Matrix invFrame=SE3inv(frame);
+//        H1=H1*invFrame;
+//        H2=H2*invFrame;
 
-        xd1=H1.getCol(3).subVector(0,2);
-        od1=dcm2axis(H1);
+//        xd1=H1.getCol(3).subVector(0,2);
+//        od1=dcm2axis(H1);
 
-        xd2=H2.getCol(3).subVector(0,2);
-        od2=dcm2axis(H2);
+//        xd2=H2.getCol(3).subVector(0,2);
+//        od2=dcm2axis(H2);
 
-        printf("apply tool (if any)...\n");
-        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+//        printf("apply tool (if any)...\n");
+//        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+//        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+
+        // Rotate the wrist and change the fingers' angles
+        printf("prepare the hand for pulling with *%s* hand...\n",pushHand.c_str());
+        prepareHandForPull(pushHand);
 
         // deal with the arm context
         int context;
         iCartCtrl->storeContext(&context);
+
+        // Transform the end-effector to the tip of the tool (if any).
+//        Vector tip_x=frame.getCol(3).subVector(0,2);
+//        Vector tip_o=yarp::math::dcm2axis(frame);
+        Vector tip_x(3,0.05);
+        tip_x[1] = 0.0;
+        Vector tip_o(4,0.0);
+        tip_o[0] = 1;
+        if (pushHand == "left")
+        {
+            tip_x[2] = -0.05;
+            tip_o[2] = 1.0/3.0;
+            tip_o[3] = -handAngle;
+        }
+        else if (pushHand == "right")
+        {
+            tip_o[2] = -1.0/3.0;
+            tip_o[3] = handAngle;
+        }
+
+        iCartCtrl->attachTipFrame(tip_x,tip_o);                // establish the new controlled frame
+
 
         Bottle options;
         Bottle &straightOpt=options.addList();
@@ -758,6 +1061,9 @@ protected:
 
         iCartCtrl->restoreContext(context);
         iCartCtrl->deleteContext(context);
+
+        restoreHand(pushHand);
+        pushHand = pushHand0;
 
         return res;
     }
@@ -1087,6 +1393,29 @@ public:
         driverL.view(iCartCtrlL);
         driverR.view(iCartCtrlR);
 
+        // New update
+        bool okR;
+        okR = driverHR.view(posCtrlR);
+        okR = okR && driverHR.view(encsR);
+        okR = okR && driverHR.view(ctrlModeR);
+
+        if (!okR) {
+            printf("Problems acquiring interfaces with right hand\n");
+            return 0;
+        }
+
+        bool okL;
+        okL = driverHL.view(posCtrlL);
+        okL = okL && driverHL.view(encsL);
+        okL = okL && driverHL.view(ctrlModeL);
+
+        if (!okL) {
+            printf("Problems acquiring interfaces with left hand\n");
+            return 0;
+        }
+
+        initHandCtrl();
+
         visionPort.open(("/"+name+"/vision:i").c_str());
         finderPort.open(("/"+name+"/finder:rpc").c_str());
         rpcPort.open(("/"+name+"/rpc").c_str());
@@ -1100,6 +1429,9 @@ public:
 
         pushHand="selectable";
         toolFrame=eye(4,4);
+
+        timeActions = 2.0;
+        handAngle = 90.0;
 
         return true;
     }
