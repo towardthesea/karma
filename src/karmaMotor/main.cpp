@@ -139,6 +139,7 @@ protected:
     ICartesianControl   *iCartCtrlL;
     ICartesianControl   *iCartCtrlR;
     ICartesianControl   *iCartCtrl;
+    ICartesianControl   *iCartCtrlOther;
 
     IPositionControl    *posCtrlR;
     IPositionControl    *posCtrlL;
@@ -154,6 +155,7 @@ protected:
     Vector commandR, commandL, command;
     double timeActions;
     double handAngle;
+    double safeMargin;
 
     string pushHand;
     Matrix toolFrame;
@@ -384,6 +386,32 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('s','a','f','e'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            safeMargin = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(safeMargin);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -394,10 +422,12 @@ protected:
 
                 reply.addString("find - [find] arm eye - An exploration is performed which aims at finding the tool dimension.");
                 reply.addString("tool-attach - [tool] [attach] arm x y z ");
-                reply.addString("time-set - [time] [set] time (s)");
-                reply.addString("time-get - [time] [get]");
-                reply.addString("angle-set - [hand] [set] angle (deg)");
-                reply.addString("angle-get - [hand] [get]");
+                reply.addString("time set - [time] [set] time (s)");
+                reply.addString("time get - [time] [get]");
+                reply.addString("angle set - [hand] [set] alpha (deg), alpha is the angle to tilt the robot hand for pull action");
+                reply.addString("angle get - [hand] [get]");
+                reply.addString("safeMargin set - [safe] [set] r (m), r is the radius of the cylinder along z-axis to protect the robot when pulling");
+                reply.addString("safeMargin get - [safe] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -432,7 +462,7 @@ protected:
         posCtrlR->setRefAccelerations(tmp.data());
 
         for (i = 0; i < nj; i++) {
-            tmp[i] = 10.0;
+            tmp[i] = 30.0;
             posCtrlR->setRefSpeed(i, tmp[i]);
         }
 
@@ -448,7 +478,7 @@ protected:
         posCtrlL->setRefAccelerations(tmp.data());
 
         for (i = 0; i < nj; i++) {
-            tmp[i] = 10.0;
+            tmp[i] = 30.0;
             posCtrlL->setRefSpeed(i, tmp[i]);
         }
     }
@@ -459,7 +489,7 @@ protected:
         if (armType =="left")
         {
             printf("left hand \n");
-            for (int i=11; i <encodersL.size(); i ++)
+            for (int i=10; i <encodersL.size(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
                 int mode;
@@ -486,7 +516,7 @@ protected:
         else if (armType == "right")
         {
             printf("right hand \n");
-            for (int i=11; i <encodersR.size(); i ++)
+            for (int i=10; i <encodersR.size(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
                 int mode;
@@ -514,6 +544,7 @@ protected:
 
         if (command.size()>=16)
         {
+            command[10] = 170;
             command[11] = 20;
             command[12] = 60;
             command[13] = 30;
@@ -524,17 +555,6 @@ protected:
         printf("move fingers \n");
         posCtrl->positionMove(command.data());
         yarp::os::Time::delay(2.0);
-
-//        bool done = false;
-//        while(!done)
-//        {
-//            if (armType == "left")
-//                posCtrlL->checkMotionDone(&done);
-//            else
-//                posCtrlR->checkMotionDone(&done);
-//            yarp::os::Time::delay(0.05);
-//        }
-//        return done;
 
         return true;
     }
@@ -564,17 +584,29 @@ protected:
         posCtrl->positionMove(command.data());
         yarp::os::Time::delay(2.0);
 
-//        bool done = false;
-//        while(!done)
-//        {
-//            if (armType == "left")
-//                posCtrlL->checkMotionDone(&done);
-//            else
-//                posCtrlR->checkMotionDone(&done);
-//            yarp::os::Time::delay(0.05);
-//        }
-//        return done;
         return true;
+    }
+
+    /***************************************************************/
+    bool keepOtherArmSafe()
+    {
+        printf("Move other arm away for safety!!!\n");
+        int contextOther;
+        double zSafe = 0.2;
+        Vector xCur(3,0.0), oCur(4,0.0);
+        iCartCtrlOther->storeContext(&contextOther);
+        iCartCtrlOther->setTrajTime(1.0);
+        iCartCtrlOther->getPose(xCur,oCur);
+        xCur[2] += zSafe;
+
+        iCartCtrlOther->goToPose(xCur,oCur,1.0);
+        iCartCtrlOther->waitMotionDone(0.1,4.0);
+        iCartCtrlOther->stopControl();
+        iCartCtrlOther->restoreContext(contextOther);
+        iCartCtrlOther->deleteContext(contextOther);
+
+        return true;
+
     }
 
     /***************************************************************/
@@ -665,14 +697,26 @@ protected:
         if (armType=="selectable")
         {
             if (xd1[1]>=0.0)
-                iCartCtrl=iCartCtrlR;
+            {
+                iCartCtrl = iCartCtrlR;
+                iCartCtrlOther = iCartCtrlL;
+            }
             else
-                iCartCtrl=iCartCtrlL;
+            {
+                iCartCtrl = iCartCtrlL;
+                iCartCtrlOther = iCartCtrlR;
+            }
         }
         else if (armType=="left")
+        {
             iCartCtrl=iCartCtrlL;
+            iCartCtrlOther = iCartCtrlR;
+        }
         else
+        {
             iCartCtrl=iCartCtrlR;
+            iCartCtrlOther = iCartCtrlL;
+        }
 
         // deal with the arm context
         int context;
@@ -776,6 +820,7 @@ protected:
         {
             Vector x=*xd+offs;
 
+            keepOtherArmSafe();
             printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
             iCartCtrl->goToPoseSync(x,*od,timeActions);
             iCartCtrl->waitMotionDone(0.1,4.0);
@@ -898,19 +943,27 @@ protected:
             printf("yObj = %f\n",yObj);
             if (yObj>=0)
             {
-                iCartCtrl=iCartCtrlR;
+                iCartCtrl = iCartCtrlR;
+                iCartCtrlOther = iCartCtrlL;
                 pushHand = "right";
             }
             else
             {
                 iCartCtrl=iCartCtrlL;
+                iCartCtrlOther = iCartCtrlR;
                 pushHand = "left";
             }
         }
         else if (armType=="left")
-            iCartCtrl=iCartCtrlL;
+        {
+            iCartCtrl = iCartCtrlL;
+            iCartCtrlOther = iCartCtrlR;
+        }
         else if (armType=="right")
-            iCartCtrl=iCartCtrlR;
+        {
+            iCartCtrl = iCartCtrlR;
+            iCartCtrlOther = iCartCtrlL;
+        }
         printf("armType: %s\n", armType.c_str());
         printf("pushHand: %s\n", pushHand.c_str());
 
@@ -939,26 +992,20 @@ protected:
 
             xd2=H2.getCol(3).subVector(0,2);
             od2=dcm2axis(H2);
+
+        }
+
+        // Safe pulling
+        double dist_xd2 = sqrt(pow(xd2[0],2.0) + pow(xd2[1],2.0));
+        printf("distance from xd2 to center %f\n", dist_xd2);
+        if (dist_xd2<safeMargin)
+        {
+            xd2[0] = sign(c[0]) * sqrt(pow(safeMargin,2.0) - pow(xd2[1],2.0));
         }
 
         printf("in-place locations...\n");
         printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
         printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
-
-//        // apply tool (if any)
-//        Matrix invFrame=SE3inv(frame);
-//        H1=H1*invFrame;
-//        H2=H2*invFrame;
-
-//        xd1=H1.getCol(3).subVector(0,2);
-//        od1=dcm2axis(H1);
-
-//        xd2=H2.getCol(3).subVector(0,2);
-//        od2=dcm2axis(H2);
-
-//        printf("apply tool (if any)...\n");
-//        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-//        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
         // Rotate the wrist and change the fingers' angles
         printf("prepare the hand for pulling with *%s* hand...\n",pushHand.c_str());
@@ -968,27 +1015,51 @@ protected:
         int context;
         iCartCtrl->storeContext(&context);
 
-        // Transform the end-effector to the tip of the tool (if any).
-//        Vector tip_x=frame.getCol(3).subVector(0,2);
-//        Vector tip_o=yarp::math::dcm2axis(frame);
-        Vector tip_x(3,0.05);
-        tip_x[1] = 0.0;
-        Vector tip_o(4,0.0);
-        tip_o[0] = 1;
+        Matrix Htip(4,4); Htip.zero();
+
+        double sign_handAngle;
+        // The tip frame should be considered wrt the original End-Effector (hand) FoR
+        // Make the palm of the hand parallel to to table
         if (pushHand == "left")
         {
-            tip_x[2] = -0.05;
-            tip_o[2] = 1.0/3.0;
-            tip_o[3] = -handAngle;
+            Htip(0,0) =  1.0;
+            Htip(2,1) = -1.0;
+            Htip(1,2) =  1.0;
+
+            sign_handAngle = -1.0;
         }
         else if (pushHand == "right")
         {
-            tip_o[2] = -1.0/3.0;
-            tip_o[3] = handAngle;
+            Htip(0,0) =  1.0;
+            Htip(2,1) =  1.0;
+            Htip(1,2) = -1.0;
+
+            sign_handAngle = 1.0;
         }
+
+        Htip(3,3) = 1.0;
+
+        Vector handRot0(4,0.0);
+        handRot0[1] = 1.0; handRot0[3] = sign_handAngle * handAngle*M_PI/180.0; //Tilt hand 'handAngle' degrees
+        Matrix R0 = axis2dcm(handRot0);
+
+        Vector handRot1(4,0.0);
+        handRot1[2] = 1.0; handRot1[3] = 30*M_PI/180.0; //Rotate hand 30 degrees of yaw
+        Matrix R1 = axis2dcm(handRot1);
+
+        Htip = R0*R1*Htip;
+
+        Htip(0,3) = 0.05; Htip(1,3) = 0.0; Htip(2,3) = 0.025; // New tool tip position wrt the original hand FoR
+
+        Vector tip_x = Htip.getCol(3).subVector(0,2);
+        Vector tip_o = dcm2axis(Htip);
 
         iCartCtrl->attachTipFrame(tip_x,tip_o);                // establish the new controlled frame
 
+        Vector tip_x_out, tip_o_out;
+        iCartCtrl->getTipFrame(tip_x_out,tip_o_out);
+        printf("tip_x=(%s) tip_o=(%s)\n",tip_x.toString(3,3).c_str(),tip_o.toString(3,3).c_str());
+        printf("tip_x_out=(%s) tip_o_out=(%s)\n",tip_x_out.toString(3,3).c_str(),tip_o_out.toString(3,3).c_str());
 
         Bottle options;
         Bottle &straightOpt=options.addList();
@@ -1010,7 +1081,7 @@ protected:
         {
             Vector xdhat1,odhat1,xdhat2,odhat2,qdhat;
             iCartCtrl->askForPose(xd1,od1,xdhat1,odhat1,qdhat);
-            iCartCtrl->askForPose(qdhat,xd2,od2,xdhat2,odhat2,qdhat);
+            bool canPull = iCartCtrl->askForPose(qdhat,xd2,od2,xdhat2,odhat2,qdhat);
 
             double e_x1=norm(xd1-xdhat1);
             double e_o1=norm(od1-odhat1);
@@ -1030,6 +1101,8 @@ protected:
             printf("nearness penalty=%g\n",nearness_penalty);
             res=e_x1+e_o1+e_x2+e_o2+nearness_penalty;
             printf("final quality=%g\n",res);
+            string pullTest = (canPull) ? "true" : "false";
+            printf("Can pull: %s\n",pullTest.c_str());
         }
         // execute the movements
         else
@@ -1039,6 +1112,7 @@ protected:
             {
                 Vector x=xd1+offs;
 
+                keepOtherArmSafe();
                 printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od1.toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,od1,2.0);
                 iCartCtrl->waitMotionDone(0.1,5.0);
@@ -1431,7 +1505,8 @@ public:
         toolFrame=eye(4,4);
 
         timeActions = 2.0;
-        handAngle = 90.0;
+        handAngle = 15.0;
+        safeMargin = 0.25;
 
         return true;
     }
