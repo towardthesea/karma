@@ -413,6 +413,32 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('s','e','g','L'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            segL = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(segL);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -429,6 +455,8 @@ protected:
                 reply.addString("angle get - [hand] [get]");
                 reply.addString("safeMargin set - [safe] [set] r (m), r is the radius of the cylinder along z-axis to protect the robot when pulling");
                 reply.addString("safeMargin get - [safe] [get]");
+                reply.addString("segmentLength set - [segL] [set] L (m), L is the lenght of the a segment to divide the straight motion");
+                reply.addString("segmentLength get - [segL] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -875,11 +903,24 @@ protected:
                 iCartCtrl->goToPoseSync(x,*od,timeActions);
             }
             iCartCtrl->waitMotionDone(0.1,timeActions);
-        }
+//        }
 
         // Going back to initial position after pushing
-        if (!interrupting)
-        {
+//        if (!interrupting)
+//        {
+//            printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+//            iCartCtrl->goToPoseSync(*xd,*od,2.0);
+//            iCartCtrl->waitMotionDone(0.1,2.0);
+
+            // Going back to initial position after pushing
+            for (int i=segN; i>0; i--)
+            {
+                for (int j=0; j<xWp.size(); j++)
+                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                yarp::os::Time::delay(segT);
+            }
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
             iCartCtrl->goToPoseSync(*xd,*od,2.0);
             iCartCtrl->waitMotionDone(0.1,2.0);
