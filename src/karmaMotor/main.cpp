@@ -156,6 +156,7 @@ protected:
     double timeActions;
     double handAngle;
     double safeMargin;
+    double segL;    // segment length of push/pull action to avoid curved movement
 
     string pushHand;
     Matrix toolFrame;
@@ -825,7 +826,7 @@ protected:
             iCartCtrl->goToPoseSync(x,*od,timeActions);
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
-
+        // Going down to initial position for pushing
         if (!interrupting)
         {
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
@@ -833,30 +834,8 @@ protected:
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
 
-        double rmin,rmax,tmin,tmax;
-        if (((fabs(theta)<10.0) || (fabs(theta-180.0)<10.0)))
-        {
-            rmin=0.04; rmax=0.18;
-//            tmin=0.40; tmax=0.60;
-            tmin=1.20; tmax=1.80;
-        }
-        else
-        {
-            rmin=0.04; rmax=0.18;
-//            tmin=0.50; tmax=0.80;
-            tmin=1.50; tmax=2.40;
-        }
-
-        // safe guard for using the tool
-        if (armType!="selectable")
-        {
-            tmin*=1.3;
-            tmax*=1.3;
-        }
-
-        double trajTime=tmin+((tmax-tmin)/(rmax-rmin))*(radius-rmin);
-        trajTime=std::max(std::min(tmax,trajTime),tmin);
-
+        // Pushing movement: divide into segment-by-segment movement, with:
+        // segL (segmentLength), segN (number of segment), segT (time of each segment)
         if (!interrupting)
         {
             Matrix H=axis2dcm(*od);
@@ -864,12 +843,41 @@ protected:
             H.setCol(3,center);
             Vector x=-1.0*frame.getCol(3); x[3]=1.0;
             x=H*x; x.pop_back();
+//            printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+//            iCartCtrl->goToPoseSync(x,*od,trajTime);
+//            iCartCtrl->waitMotionDone(0.1,3.0);
 
-            printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(x,*od,trajTime);
-            iCartCtrl->waitMotionDone(0.1,3.0);
+            // xd: initial position -> xs
+            // x : final position   -> xf
+            Vector xf = x.subVector(0,2);
+            Vector xs = *xd;
+            Vector vel(3,0.0);
+            for (int i=0; i<vel.size(); i++)
+                vel[i] = xf[i]-xs[i];
+            double distMove = norm(vel);
+            int segN = floor(distMove/segL);
+            double segT = 0.3;
+            printf("xf = %s\nxs = %s\n",xf.toString().c_str(),xs.toString().c_str());
+            printf("vel = %s\ndistMove = %f\nsegN = %d\nsegT = %f\n",vel.toString().c_str(),distMove,segN,segT);
+            Vector xWp(3,0.0);
+            for (int i=1; i<=segN; i++)
+            {
+                for (int j=0; j<xWp.size(); j++)
+                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                yarp::os::Time::delay(segT);
+            }
+
+            if (norm(xWp-xf)>=0.01)
+            {
+                printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(x,*od,timeActions);
+            }
+            iCartCtrl->waitMotionDone(0.1,timeActions);
         }
 
+        // Going back to initial position after pushing
         if (!interrupting)
         {
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
@@ -938,7 +946,6 @@ protected:
         string pushHand0 = pushHand;
         if (armType=="selectable")
         {
-//            if (xd1[1]>=0.0)
             double yObj = c[1]+radius*_c;
             printf("yObj = %f\n",yObj);
             if (yObj>=0)
@@ -1506,7 +1513,8 @@ public:
 
         timeActions = 2.0;
         handAngle = 15.0;
-        safeMargin = 0.25;
+        safeMargin = 0.25;  // 25cm
+        segL = 0.1;         // 10cm
 
         return true;
     }
