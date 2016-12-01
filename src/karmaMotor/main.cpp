@@ -871,9 +871,6 @@ protected:
             H.setCol(3,center);
             Vector x=-1.0*frame.getCol(3); x[3]=1.0;
             x=H*x; x.pop_back();
-//            printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-//            iCartCtrl->goToPoseSync(x,*od,trajTime);
-//            iCartCtrl->waitMotionDone(0.1,3.0);
 
             // xd: initial position -> xs
             // x : final position   -> xf
@@ -885,8 +882,7 @@ protected:
             double distMove = norm(vel);
             int segN = floor(distMove/segL);
             double segT = 0.3;
-            printf("xf = %s\nxs = %s\n",xf.toString().c_str(),xs.toString().c_str());
-            printf("vel = %s\ndistMove = %f\nsegN = %d\nsegT = %f\n",vel.toString().c_str(),distMove,segN,segT);
+
             Vector xWp(3,0.0);
             for (int i=1; i<=segN; i++)
             {
@@ -903,14 +899,6 @@ protected:
                 iCartCtrl->goToPoseSync(x,*od,timeActions);
             }
             iCartCtrl->waitMotionDone(0.1,timeActions);
-//        }
-
-        // Going back to initial position after pushing
-//        if (!interrupting)
-//        {
-//            printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-//            iCartCtrl->goToPoseSync(*xd,*od,2.0);
-//            iCartCtrl->waitMotionDone(0.1,2.0);
 
             // Going back to initial position after pushing
             for (int i=segN; i>0; i--)
