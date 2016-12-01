@@ -156,6 +156,7 @@ protected:
     double timeActions;
     double handAngle;
     double safeMargin;
+    double segL;    // segment length of push/pull action to avoid curved movement
 
     string pushHand;
     Matrix toolFrame;
@@ -412,6 +413,32 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('s','e','g','L'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            segL = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(segL);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -428,6 +455,8 @@ protected:
                 reply.addString("angle get - [hand] [get]");
                 reply.addString("safeMargin set - [safe] [set] r (m), r is the radius of the cylinder along z-axis to protect the robot when pulling");
                 reply.addString("safeMargin get - [safe] [get]");
+                reply.addString("segmentLength set - [segL] [set] L (m), L is the lenght of the a segment to divide the straight motion");
+                reply.addString("segmentLength get - [segL] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -825,7 +854,7 @@ protected:
             iCartCtrl->goToPoseSync(x,*od,timeActions);
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
-
+        // Going down to initial position for pushing
         if (!interrupting)
         {
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
@@ -833,30 +862,8 @@ protected:
             iCartCtrl->waitMotionDone(0.1,4.0);
         }
 
-        double rmin,rmax,tmin,tmax;
-        if (((fabs(theta)<10.0) || (fabs(theta-180.0)<10.0)))
-        {
-            rmin=0.04; rmax=0.18;
-//            tmin=0.40; tmax=0.60;
-            tmin=1.20; tmax=1.80;
-        }
-        else
-        {
-            rmin=0.04; rmax=0.18;
-//            tmin=0.50; tmax=0.80;
-            tmin=1.50; tmax=2.40;
-        }
-
-        // safe guard for using the tool
-        if (armType!="selectable")
-        {
-            tmin*=1.3;
-            tmax*=1.3;
-        }
-
-        double trajTime=tmin+((tmax-tmin)/(rmax-rmin))*(radius-rmin);
-        trajTime=std::max(std::min(tmax,trajTime),tmin);
-
+        // Pushing movement: divide into segment-by-segment movement, with:
+        // segL (segmentLength), segN (number of segment), segT (time of each segment)
         if (!interrupting)
         {
             Matrix H=axis2dcm(*od);
@@ -865,13 +872,43 @@ protected:
             Vector x=-1.0*frame.getCol(3); x[3]=1.0;
             x=H*x; x.pop_back();
 
-            printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(x,*od,trajTime);
-            iCartCtrl->waitMotionDone(0.1,3.0);
-        }
+            // xd: initial position -> xs
+            // x : final position   -> xf
+            Vector xf = x.subVector(0,2);
+            Vector xs = *xd;
+            Vector vel(3,0.0);
+            for (int i=0; i<vel.size(); i++)
+                vel[i] = xf[i]-xs[i];
+            double distMove = norm(vel);
+            int segN = floor(distMove/segL);
+            double segT = 0.3;
 
-        if (!interrupting)
-        {
+            Vector xWp(3,0.0);
+            for (int i=1; i<=segN; i++)
+            {
+                for (int j=0; j<xWp.size(); j++)
+                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                yarp::os::Time::delay(segT);
+            }
+
+            if (norm(xWp-xf)>=0.01)
+            {
+                printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(x,*od,timeActions);
+            }
+            iCartCtrl->waitMotionDone(0.1,timeActions);
+
+            // Going back to initial position after pushing
+            for (int i=segN; i>0; i--)
+            {
+                for (int j=0; j<xWp.size(); j++)
+                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                yarp::os::Time::delay(segT);
+            }
             printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
             iCartCtrl->goToPoseSync(*xd,*od,2.0);
             iCartCtrl->waitMotionDone(0.1,2.0);
@@ -938,7 +975,6 @@ protected:
         string pushHand0 = pushHand;
         if (armType=="selectable")
         {
-//            if (xd1[1]>=0.0)
             double yObj = c[1]+radius*_c;
             printf("yObj = %f\n",yObj);
             if (yObj>=0)
@@ -1506,7 +1542,8 @@ public:
 
         timeActions = 2.0;
         handAngle = 15.0;
-        safeMargin = 0.25;
+        safeMargin = 0.25;  // 25cm
+        segL = 0.1;         // 10cm
 
         return true;
     }
