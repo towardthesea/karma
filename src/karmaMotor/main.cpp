@@ -846,7 +846,7 @@ protected:
         Vector xTemp = *xd;
         double dist_xd = sqrt(pow(xTemp[0],2.0) + pow(xTemp[1],2.0));
         printf("distance from xd to center %f\n", dist_xd);
-        if (dist_xd>safeMargin && xTemp[0]>=0.0)
+        if (dist_xd>safeMargin && xTemp[0]<=0.0)
         {
             // execute the movement
             Vector offs(3,0.0); offs[2]=0.1;
