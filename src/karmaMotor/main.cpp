@@ -843,75 +843,85 @@ protected:
 
         printf(": xd=(%s); od=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
 
-        // execute the movement
-        Vector offs(3,0.0); offs[2]=0.1;
-        if (!interrupting)
+        Vector xTemp = *xd;
+        double dist_xd = sqrt(pow(xTemp[0],2.0) + pow(xTemp[1],2.0));
+        printf("distance from xd to center %f\n", dist_xd);
+        if (dist_xd>safeMargin && xTemp[0]>=0.0)
         {
-            Vector x=*xd+offs;
-
-            keepOtherArmSafe();
-            printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(x,*od,timeActions);
-            iCartCtrl->waitMotionDone(0.1,4.0);
-        }
-        // Going down to initial position for pushing
-        if (!interrupting)
-        {
-            printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(*xd,*od,timeActions);
-            iCartCtrl->waitMotionDone(0.1,4.0);
-        }
-
-        // Pushing movement: divide into segment-by-segment movement, with:
-        // segL (segmentLength), segN (number of segment), segT (time of each segment)
-        if (!interrupting)
-        {
-            Matrix H=axis2dcm(*od);
-            Vector center=c; center.push_back(1.0);
-            H.setCol(3,center);
-            Vector x=-1.0*frame.getCol(3); x[3]=1.0;
-            x=H*x; x.pop_back();
-
-            // xd: initial position -> xs
-            // x : final position   -> xf
-            Vector xf = x.subVector(0,2);
-            Vector xs = *xd;
-            Vector vel(3,0.0);
-            for (int i=0; i<vel.size(); i++)
-                vel[i] = xf[i]-xs[i];
-            double distMove = norm(vel);
-            int segN = floor(distMove/segL);
-            double segT = 0.3;
-
-            Vector xWp(3,0.0);
-            for (int i=1; i<=segN; i++)
+            // execute the movement
+            Vector offs(3,0.0); offs[2]=0.1;
+            if (!interrupting)
             {
-                for (int j=0; j<xWp.size(); j++)
-                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
-                yarp::os::Time::delay(segT);
-            }
+                Vector x=*xd+offs;
 
-            if (norm(xWp-xf)>=0.01)
-            {
+                keepOtherArmSafe();
                 printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,*od,timeActions);
+                iCartCtrl->waitMotionDone(0.1,4.0);
             }
-            iCartCtrl->waitMotionDone(0.1,timeActions);
-
-            // Going back to initial position after pushing
-            for (int i=segN; i>0; i--)
+            // Going down to initial position for pushing
+            if (!interrupting)
             {
-                for (int j=0; j<xWp.size(); j++)
-                    xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(xWp,*od,timeActions);
-                yarp::os::Time::delay(segT);
+                printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(*xd,*od,timeActions);
+                iCartCtrl->waitMotionDone(0.1,4.0);
             }
-            printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(*xd,*od,2.0);
-            iCartCtrl->waitMotionDone(0.1,2.0);
+
+            // Pushing movement: divide into segment-by-segment movement, with:
+            // segL (segmentLength), segN (number of segment), segT (time of each segment)
+            if (!interrupting)
+            {
+                Matrix H=axis2dcm(*od);
+                Vector center=c; center.push_back(1.0);
+                H.setCol(3,center);
+                Vector x=-1.0*frame.getCol(3); x[3]=1.0;
+                x=H*x; x.pop_back();
+
+                // xd: initial position -> xs
+                // x : final position   -> xf
+                Vector xf = x.subVector(0,2);
+                Vector xs = *xd;
+                Vector vel(3,0.0);
+                for (int i=0; i<vel.size(); i++)
+                    vel[i] = xf[i]-xs[i];
+                double distMove = norm(vel);
+                int segN = floor(distMove/segL);
+                double segT = 0.3;
+
+                Vector xWp(3,0.0);
+                for (int i=1; i<=segN; i++)
+                {
+                    for (int j=0; j<xWp.size(); j++)
+                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                    yarp::os::Time::delay(segT);
+                }
+
+                if (norm(xWp-xf)>=0.01)
+                {
+                    printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    iCartCtrl->goToPoseSync(x,*od,timeActions);
+                }
+                iCartCtrl->waitMotionDone(0.1,timeActions);
+
+                // Going back to initial position after pushing
+                for (int i=segN; i>0; i--)
+                {
+                    for (int j=0; j<xWp.size(); j++)
+                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    iCartCtrl->goToPoseSync(xWp,*od,timeActions);
+                    yarp::os::Time::delay(segT);
+                }
+                printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+                iCartCtrl->goToPoseSync(*xd,*od,2.0);
+                iCartCtrl->waitMotionDone(0.1,2.0);
+            }
+        }
+        else
+        {
+            yWarning()<<"It is not safe to conduct the action. Quit!!!";
         }
         
         iCartCtrl->restoreContext(context);
