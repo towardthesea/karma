@@ -631,8 +631,6 @@ protected:
         xCur[2] += zSafe;
 
         iCartCtrlOther->goToPose(xCur,oCur,1.0);
-//        iCartCtrlOther->waitMotionDone(0.1,4.0);
-//        iCartCtrlOther->stopControl();
         iCartCtrlOther->restoreContext(contextOther);
         iCartCtrlOther->deleteContext(contextOther);
 
