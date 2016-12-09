@@ -218,8 +218,10 @@ protected:
                     theta=payload.get(3).asDouble();
                     radius=payload.get(4).asDouble();
 
-                    push(c,theta,radius,pushHand,toolFrame);
-                    reply.addVocab(ack);
+                    if (push(c,theta,radius,pushHand,toolFrame))
+                        reply.addVocab(ack);
+                    else
+                        reply.addVocab(nack);
                 }
 
                 break;
@@ -629,8 +631,8 @@ protected:
         xCur[2] += zSafe;
 
         iCartCtrlOther->goToPose(xCur,oCur,1.0);
-        iCartCtrlOther->waitMotionDone(0.1,4.0);
-        iCartCtrlOther->stopControl();
+//        iCartCtrlOther->waitMotionDone(0.1,4.0);
+//        iCartCtrlOther->stopControl();
         iCartCtrlOther->restoreContext(contextOther);
         iCartCtrlOther->deleteContext(contextOther);
 
@@ -661,7 +663,7 @@ protected:
     }
 
     /************************************************************************/
-    void push(const Vector &c, const double theta, const double radius,
+    bool push(const Vector &c, const double theta, const double radius,
               const string &armType="selectable", const Matrix &frame=eye(4,4))
     {
         // wrt root frame: frame centered at c with x-axis pointing rightward,
@@ -676,7 +678,7 @@ protected:
         double _c=cos(theta_rad);
         double _s=sin(theta_rad);
         double _theta=CTRL_RAD2DEG*atan2(_s,_c);    // to have theta in [-180.0,180.0]
-        double epsilon=0.05;
+        double epsilon=0.02;
 
         // wrt H0 frame: frame centered at R*[_c,_s] with z-axis pointing inward
         // and x-axis tangential
@@ -846,6 +848,7 @@ protected:
         Vector xTemp = *xd;
         double dist_xd = sqrt(pow(xTemp[0],2.0) + pow(xTemp[1],2.0));
         printf("distance from xd to center %f\n", dist_xd);
+        bool resPush;
         if (dist_xd>safeMargin && xTemp[0]<=0.0)
         {
             // execute the movement
@@ -918,14 +921,17 @@ protected:
                 iCartCtrl->goToPoseSync(*xd,*od,2.0);
                 iCartCtrl->waitMotionDone(0.1,2.0);
             }
+            resPush = true;
         }
         else
         {
-            yWarning()<<"It is not safe to conduct the action. Quit!!!";
+            yWarning()<<" [karmaMotor] It is not safe to conduct the action. Quit!!!";
+            resPush = false;
         }
         
         iCartCtrl->restoreContext(context);
         iCartCtrl->deleteContext(context);
+        return resPush;
     }
 
     /************************************************************************/
@@ -1164,6 +1170,7 @@ protected:
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
 
+            // Going down to initial position for pulling
             if (!interrupting)
             {
                 printf("moving to: x=(%s); o=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
@@ -1171,11 +1178,41 @@ protected:
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
 
+            // Pulling movement: divide into segment-by-segment movement, with:
+            // segL (segmentLength), segN (number of segment), segT (time of each segment)
             if (!interrupting)
             {
-                printf("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(xd2,od2,3.5);
-                iCartCtrl->waitMotionDone(0.1,5.0);
+//                printf("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+//                iCartCtrl->goToPoseSync(xd2,od2,3.5);
+//                iCartCtrl->waitMotionDone(0.1,5.0);
+
+                // xd1 : initial position -> xs
+                // xd2 : final position   -> xf
+                Vector xf = xd2;
+                Vector xs = xd1;
+                Vector vel(3,0.0);
+                for (int i=0; i<vel.size(); i++)
+                    vel[i] = xf[i]-xs[i];
+                double distMove = norm(vel);
+                int segN = floor(distMove/segL);
+                double segT = 0.3;
+
+                Vector xWp(3,0.0);
+                for (int i=1; i<=segN; i++)
+                {
+                    for (int j=0; j<xWp.size(); j++)
+                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
+                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od2.toString(3,3).c_str());
+                    iCartCtrl->goToPoseSync(xWp,od2,timeActions);
+                    yarp::os::Time::delay(segT);
+                }
+
+                if (norm(xWp-xf)>=0.01)
+                {
+                    printf("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+                    iCartCtrl->goToPoseSync(xd2,od2,timeActions);
+                }
+                iCartCtrl->waitMotionDone(0.1,timeActions);
             }
         }
 
@@ -1550,9 +1587,9 @@ public:
         pushHand="selectable";
         toolFrame=eye(4,4);
 
-        timeActions = 2.0;
-        handAngle = 15.0;
-        safeMargin = 0.25;  // 25cm
+        timeActions = 1.5;
+        handAngle   = 15.0;
+        safeMargin  = 0.25; // 25cm
         segL = 0.1;         // 10cm
 
         return true;
