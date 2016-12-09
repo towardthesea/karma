@@ -1590,7 +1590,7 @@ public:
         timeActions = 1.5;
         handAngle   = 15.0;
         safeMargin  = 0.25; // 25cm
-        segL = 0.1;         // 10cm
+        segL = 0.05;        //  5cm
 
         return true;
     }
