@@ -1180,10 +1180,6 @@ protected:
             // segL (segmentLength), segN (number of segment), segT (time of each segment)
             if (!interrupting)
             {
-//                printf("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
-//                iCartCtrl->goToPoseSync(xd2,od2,3.5);
-//                iCartCtrl->waitMotionDone(0.1,5.0);
-
                 // xd1 : initial position -> xs
                 // xd2 : final position   -> xf
                 Vector xf = xd2;
@@ -1588,7 +1584,7 @@ public:
         timeActions = 1.5;
         handAngle   = 15.0;
         safeMargin  = 0.25; // 25cm
-        segL = 0.05;        //  5cm
+        segL        = 0.05; //  5cm
 
         return true;
     }
