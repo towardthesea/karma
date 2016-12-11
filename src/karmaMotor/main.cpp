@@ -519,24 +519,24 @@ protected:
     {
         if (armType =="left")
         {
-            printf("left hand \n");
+            yInfo("left hand \n");
             for (int i=10; i <encodersL.size(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
                 int mode;
                 ctrlModeL->getControlMode(i,&mode);
-                printf("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %d: ",i);
                 switch (mode)
                 {
-                    case VOCAB_CM_IDLE:            printf("IDLE     ");         break;
-                    case VOCAB_CM_POSITION:        printf("POSITION ");         break;
-                    case VOCAB_CM_POSITION_DIRECT: printf("POSITION DIRECT ");  break;
-                    case VOCAB_CM_VELOCITY:        printf("VELOCITY ");         break;
-                    case VOCAB_CM_MIXED:           printf("MIXED POS/VEL");     break;
-                    case VOCAB_CM_TORQUE:          printf("TORQUE   ");         break;
-                    case VOCAB_CM_OPENLOOP:        printf("OPENLOOP ");         break;
+                    case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
+                    case VOCAB_CM_POSITION:        yInfo("POSITION ");         break;
+                    case VOCAB_CM_POSITION_DIRECT: yInfo("POSITION DIRECT ");  break;
+                    case VOCAB_CM_VELOCITY:        yInfo("VELOCITY ");         break;
+                    case VOCAB_CM_MIXED:           yInfo("MIXED POS/VEL");     break;
+                    case VOCAB_CM_TORQUE:          yInfo("TORQUE   ");         break;
+                    case VOCAB_CM_OPENLOOP:        yInfo("OPENLOOP ");         break;
                     default:
-                    case VOCAB_CM_UNKNOWN:         printf("UNKNOWN  ");         break;
+                    case VOCAB_CM_UNKNOWN:         yInfo("UNKNOWN  ");         break;
                 }
                 cout<<endl;
             }
@@ -546,24 +546,24 @@ protected:
         }
         else if (armType == "right")
         {
-            printf("right hand \n");
+            yInfo("right hand \n");
             for (int i=10; i <encodersR.size(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
                 int mode;
                 ctrlModeR->getControlMode(i,&mode);
-                printf("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %d: ",i);
                 switch (mode)
                 {
-                    case VOCAB_CM_IDLE:            printf("IDLE     ");         break;
-                    case VOCAB_CM_POSITION:        printf("POSITION ");         break;
-                    case VOCAB_CM_POSITION_DIRECT: printf("POSITION DIRECT ");  break;
-                    case VOCAB_CM_VELOCITY:        printf("VELOCITY ");         break;
-                    case VOCAB_CM_MIXED:           printf("MIXED POS/VEL");     break;
-                    case VOCAB_CM_TORQUE:          printf("TORQUE   ");         break;
-                    case VOCAB_CM_OPENLOOP:        printf("OPENLOOP ");         break;
+                    case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
+                    case VOCAB_CM_POSITION:        yInfo("POSITION ");         break;
+                    case VOCAB_CM_POSITION_DIRECT: yInfo("POSITION DIRECT ");  break;
+                    case VOCAB_CM_VELOCITY:        yInfo("VELOCITY ");         break;
+                    case VOCAB_CM_MIXED:           yInfo("MIXED POS/VEL");     break;
+                    case VOCAB_CM_TORQUE:          yInfo("TORQUE   ");         break;
+                    case VOCAB_CM_OPENLOOP:        yInfo("OPENLOOP ");         break;
                     default:
-                    case VOCAB_CM_UNKNOWN:         printf("UNKNOWN  ");         break;
+                    case VOCAB_CM_UNKNOWN:         yInfo("UNKNOWN  ");         break;
                 }
                 cout<<endl;
             }
@@ -583,7 +583,7 @@ protected:
             command[15] = 90;
         }
 
-        printf("move fingers \n");
+        yInfo("move fingers \n");
         posCtrl->positionMove(command.data());
         yarp::os::Time::delay(2.0);
 
@@ -621,7 +621,7 @@ protected:
     /***************************************************************/
     bool keepOtherArmSafe()
     {
-        printf("Move other arm away for safety!!!\n");
+        yInfo("Move other arm away for safety!!!\n");
         int contextOther;
         double zSafe = 0.2;
         Vector xCur(3,0.0), oCur(4,0.0);
@@ -718,9 +718,9 @@ protected:
         Vector xd2eps=H2eps.getCol(3).subVector(0,2);
         Vector od2eps=dcm2axis(H2eps);
 
-        printf("identified locations...\n");
-        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("identified locations...\n");
+        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
         // choose the arm
         if (armType=="selectable")
@@ -777,16 +777,16 @@ protected:
         double d1=dist(H1-Hhat1);
         double d2=dist(H2-Hhat2);
 
-        printf("solutions...\n");
-        printf("#1: xdhat1=(%s) odhat1=(%s); e=%.3f\n",xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),d1);
-        printf("#2: xdhat2=(%s) odhat2=(%s); e=%.3f\n",xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),d2);
-        printf("selection: ");
+        yInfo("solutions...\n");
+        yInfo("#1: xdhat1=(%s) odhat1=(%s); e=%.3f\n",xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),d1);
+        yInfo("#2: xdhat2=(%s) odhat2=(%s); e=%.3f\n",xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),d2);
+        yInfo("selection: ");
 
         // compare solutions and choose the best
         Vector *xd,*od;
         if (fabs(_theta-90.0)<45.0)
         {
-            printf("(detected singularity) ");
+            yInfo("(detected singularity) ");
             if (iCartCtrl==iCartCtrlR)
             {
                 xd=&xd1;
@@ -800,7 +800,7 @@ protected:
         }
         else if (fabs(_theta+90.0)<45.0)
         {
-            printf("(detected singularity) ");
+            yInfo("(detected singularity) ");
             if (iCartCtrl==iCartCtrlR)
             {
                 xd=&xd2;
@@ -824,28 +824,28 @@ protected:
         }
 
         if (xd==&xd1)
-            printf("#1 ");
+            yInfo("#1 ");
         else
-            printf("#2 ");
+            yInfo("#2 ");
 
         if ((iCartCtrl==iCartCtrlR) && (_theta<0.0) && (xd==&xd2))
         {
-            printf("(increased radius)");
+            yInfo("(increased radius)");
             xd=&xd2eps;
             od=&od2eps;
         }
         else if ((iCartCtrl==iCartCtrlL) && (_theta<0.0) && (xd==&xd1))
         {
-            printf("(increased radius)");
+            yInfo("(increased radius)");
             xd=&xd1eps;
             od=&od1eps;
         }
 
-        printf(": xd=(%s); od=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+        yInfo(": xd=(%s); od=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
 
         Vector xTemp = *xd;
         double dist_xd = sqrt(pow(xTemp[0],2.0) + pow(xTemp[1],2.0));
-        printf("distance from xd to center %f\n", dist_xd);
+        yInfo("distance from xd to center %f\n", dist_xd);
         bool resPush;
         if (dist_xd>safeMargin && xTemp[0]<=0.0)
         {
@@ -856,14 +856,14 @@ protected:
                 Vector x=*xd+offs;
 
                 keepOtherArmSafe();
-                printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,*od,timeActions);
                 iCartCtrl->waitMotionDone(0.1,4.0);
             }
             // Going down to initial position for pushing
             if (!interrupting)
             {
-                printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(*xd,*od,timeActions);
                 iCartCtrl->waitMotionDone(0.1,4.0);
             }
@@ -894,14 +894,14 @@ protected:
                 {
                     for (int j=0; j<xWp.size(); j++)
                         xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
                     iCartCtrl->goToPoseSync(xWp,*od,timeActions);
                     yarp::os::Time::delay(segT);
                 }
 
                 if (norm(xWp-xf)>=0.01)
                 {
-                    printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
                     iCartCtrl->goToPoseSync(x,*od,timeActions);
                 }
                 iCartCtrl->waitMotionDone(0.1,timeActions);
@@ -911,11 +911,11 @@ protected:
                 {
                     for (int j=0; j<xWp.size(); j++)
                         xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
+                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
                     iCartCtrl->goToPoseSync(xWp,*od,timeActions);
                     yarp::os::Time::delay(segT);
                 }
-                printf("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(*xd,*od,2.0);
                 iCartCtrl->waitMotionDone(0.1,2.0);
             }
@@ -979,18 +979,18 @@ protected:
         Vector xd2=H2.getCol(3).subVector(0,2);
         Vector od2=dcm2axis(H2);
 
-        printf("identified locations on the sagittal plane...\n");
-        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("identified locations on the sagittal plane...\n");
+        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
-        printf("armType: %s\n", armType.c_str());
-        printf("pushHand: %s\n", pushHand.c_str());
+        yInfo("armType: %s\n", armType.c_str());
+        yInfo("pushHand: %s\n", pushHand.c_str());
         // choose the arm
         string pushHand0 = pushHand;
         if (armType=="selectable")
         {
             double yObj = c[1]+radius*_c;
-            printf("yObj = %f\n",yObj);
+            yInfo("yObj = %f\n",yObj);
             if (yObj>=0)
             {
                 iCartCtrl = iCartCtrlR;
@@ -1014,8 +1014,8 @@ protected:
             iCartCtrl = iCartCtrlR;
             iCartCtrlOther = iCartCtrlL;
         }
-        printf("armType: %s\n", armType.c_str());
-        printf("pushHand: %s\n", pushHand.c_str());
+        yInfo("armType: %s\n", armType.c_str());
+        yInfo("pushHand: %s\n", pushHand.c_str());
 
         // recover the original place: do translation and rotation
         if (c[1]!=0.0)
@@ -1047,18 +1047,18 @@ protected:
 
         // Safe pulling
         double dist_xd2 = sqrt(pow(xd2[0],2.0) + pow(xd2[1],2.0));
-        printf("distance from xd2 to center %f\n", dist_xd2);
+        yInfo("distance from xd2 to center %f\n", dist_xd2);
         if (dist_xd2<safeMargin)
         {
             xd2[0] = sign(c[0]) * sqrt(pow(safeMargin,2.0) - pow(xd2[1],2.0));
         }
 
-        printf("in-place locations...\n");
-        printf("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        printf("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("in-place locations...\n");
+        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
         // Rotate the wrist and change the fingers' angles
-        printf("prepare the hand for pulling with *%s* hand...\n",pushHand.c_str());
+        yInfo("prepare the hand for pulling with *%s* hand...\n",pushHand.c_str());
         prepareHandForPull(pushHand);
 
         // deal with the arm context
@@ -1108,8 +1108,8 @@ protected:
 
         Vector tip_x_out, tip_o_out;
         iCartCtrl->getTipFrame(tip_x_out,tip_o_out);
-        printf("tip_x=(%s) tip_o=(%s)\n",tip_x.toString(3,3).c_str(),tip_o.toString(3,3).c_str());
-        printf("tip_x_out=(%s) tip_o_out=(%s)\n",tip_x_out.toString(3,3).c_str(),tip_o_out.toString(3,3).c_str());
+        yInfo("tip_x=(%s) tip_o=(%s)\n",tip_x.toString(3,3).c_str(),tip_o.toString(3,3).c_str());
+        yInfo("tip_x_out=(%s) tip_o_out=(%s)\n",tip_x_out.toString(3,3).c_str(),tip_o_out.toString(3,3).c_str());
 
         Bottle options;
         Bottle &straightOpt=options.addList();
@@ -1135,24 +1135,24 @@ protected:
 
             double e_x1=norm(xd1-xdhat1);
             double e_o1=norm(od1-odhat1);
-            printf("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
+            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
                    xd1.toString(3,3).c_str(),od1.toString(3,3).c_str(),
                    xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),
                    e_x1,e_o1);
 
             double e_x2=norm(xd2-xdhat2);
             double e_o2=norm(od2-odhat2);
-            printf("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
+            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
                    xd2.toString(3,3).c_str(),od2.toString(3,3).c_str(),
                    xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),
                    e_x2,e_o2);
 
             double nearness_penalty=((norm(xdhat1)<0.15)||(norm(xdhat2)<0.15)?10.0:0.0);
-            printf("nearness penalty=%g\n",nearness_penalty);
+            yInfo("nearness penalty=%g\n",nearness_penalty);
             res=e_x1+e_o1+e_x2+e_o2+nearness_penalty;
-            printf("final quality=%g\n",res);
+            yInfo("final quality=%g\n",res);
             string pullTest = (canPull) ? "true" : "false";
-            printf("Can pull: %s\n",pullTest.c_str());
+            yInfo("Can pull: %s\n",pullTest.c_str());
         }
         // execute the movements
         else
@@ -1163,7 +1163,7 @@ protected:
                 Vector x=xd1+offs;
 
                 keepOtherArmSafe();
-                printf("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od1.toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od1.toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,od1,2.0);
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
@@ -1171,7 +1171,7 @@ protected:
             // Going down to initial position for pulling
             if (!interrupting)
             {
-                printf("moving to: x=(%s); o=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(xd1,od1,1.5);
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
@@ -1196,14 +1196,14 @@ protected:
                 {
                     for (int j=0; j<xWp.size(); j++)
                         xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    printf("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od2.toString(3,3).c_str());
+                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od2.toString(3,3).c_str());
                     iCartCtrl->goToPoseSync(xWp,od2,timeActions);
                     yarp::os::Time::delay(segT);
                 }
 
                 if (norm(xWp-xf)>=0.01)
                 {
-                    printf("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+                    yInfo("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
                     iCartCtrl->goToPoseSync(xd2,od2,timeActions);
                 }
                 iCartCtrl->waitMotionDone(0.1,timeActions);
@@ -1551,7 +1551,7 @@ public:
         okR = okR && driverHR.view(ctrlModeR);
 
         if (!okR) {
-            printf("Problems acquiring interfaces with right hand\n");
+            yInfo("Problems acquiring interfaces with right hand\n");
             return 0;
         }
 
@@ -1561,7 +1561,7 @@ public:
         okL = okL && driverHL.view(ctrlModeL);
 
         if (!okL) {
-            printf("Problems acquiring interfaces with left hand\n");
+            yInfo("Problems acquiring interfaces with left hand\n");
             return 0;
         }
 
@@ -1646,7 +1646,7 @@ int main(int argc, char *argv[])
     Network yarp;
     if (!yarp.checkNetwork())
     {
-        printf("YARP server not available!\n");
+        yInfo("YARP server not available!\n");
         return 1;
     }
 
