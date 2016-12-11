@@ -906,18 +906,6 @@ protected:
                 }
                 iCartCtrl->waitMotionDone(0.1,timeActions);
 
-                // Going back to initial position after pushing
-                for (int i=segN; i>0; i--)
-                {
-                    for (int j=0; j<xWp.size(); j++)
-                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
-                    iCartCtrl->goToPoseSync(xWp,*od,timeActions);
-                    yarp::os::Time::delay(segT);
-                }
-                yInfo("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(*xd,*od,2.0);
-                iCartCtrl->waitMotionDone(0.1,2.0);
             }
             resPush = true;
         }
