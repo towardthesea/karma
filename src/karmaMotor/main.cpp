@@ -1145,7 +1145,7 @@ protected:
         // execute the movements
         else
         {
-            Vector offs(3,0.0); offs[2]=0.05;
+            Vector offs(3,0.0); offs[2]=0.1;
             if (!interrupting)
             {
                 Vector x=xd1+offs;
