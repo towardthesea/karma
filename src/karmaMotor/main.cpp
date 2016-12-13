@@ -525,7 +525,7 @@ protected:
                 ctrlModeL->setPositionMode(i);
                 int mode;
                 ctrlModeL->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %ud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
@@ -552,7 +552,7 @@ protected:
                 ctrlModeR->setPositionMode(i);
                 int mode;
                 ctrlModeR->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %ud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
@@ -671,7 +671,7 @@ protected:
         double tMove = 2.0*timeActions;
         double distMove = norm(d);
         int segN = std::max(1,int(distMove/segL));
-        double segT = std::max(0.5,tMove/segN);
+        double segT = std::max(0.4,tMove/segN);
 
         for (int i=1; (i<=segN) && !interrupting; i++)
         {
@@ -687,7 +687,7 @@ protected:
             yInfo("moving to: x=(%s); o=(%s)\n",
                   xf.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xf,o,segT);
-            iCartCtrl->waitMotionDone(0.1);
+            iCartCtrl->waitMotionDone(0.1,timeActions);
         }
     }
 
