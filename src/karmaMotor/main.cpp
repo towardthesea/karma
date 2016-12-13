@@ -671,7 +671,7 @@ protected:
         double tMove = 2.0*timeActions;
         double distMove = norm(d);
         int segN = std::max(1,int(distMove/segL));
-        double segT = std::max(0.4,tMove/segN);
+        double segT = std::max(0.5,tMove/segN);
 
         for (int i=1; (i<=segN) && !interrupting; i++)
         {
@@ -679,7 +679,7 @@ protected:
             yInfo("moving to: xWp=(%s); o=(%s)\n",
                   xWp.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xWp,o,segT);
-            Time::delay(0.8*segT);
+            Time::delay(segT);
         }
 
         if (!interrupting)
@@ -876,7 +876,7 @@ protected:
         yInfo(": xd=(%s); od=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
 
         Vector xTemp = *xd;
-        double dist_xd = sqrt(pow(xTemp[0],2.0) + pow(xTemp[1],2.0));
+        double dist_xd = sqrt(xTemp[0]*xTemp[0] + xTemp[1]*xTemp[1]);
         yInfo("distance from xd to center %f\n", dist_xd);
         bool resPush;
         if (dist_xd>safeMargin && xTemp[0]<=0.0)
@@ -1033,11 +1033,11 @@ protected:
         }
 
         // Safe pulling
-        double dist_xd2 = sqrt(pow(xd2[0],2.0) + pow(xd2[1],2.0));
+        double dist_xd2 = sqrt(xd2[0]*xd2[0] + xd2[1]*xd2[1]);
         yInfo("distance from xd2 to center %f\n", dist_xd2);
         if (dist_xd2<safeMargin)
         {
-            xd2[0] = sign(c[0]) * sqrt(pow(safeMargin,2.0) - pow(xd2[1],2.0));
+            xd2[0] = sign(c[0]) * sqrt(safeMargin*safeMargin - xd2[1]*xd2[1]);
         }
 
         yInfo("in-place locations...\n");
