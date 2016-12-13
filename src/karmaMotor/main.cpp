@@ -679,7 +679,7 @@ protected:
             yInfo("moving to: xWp=(%s); o=(%s)\n",
                   xWp.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xWp,o,segT);
-            Time::delay(segT);
+            Time::delay(0.8*segT);
         }
 
         if (!interrupting)
@@ -688,6 +688,7 @@ protected:
                   xf.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xf,o,segT);
             iCartCtrl->waitMotionDone(0.1,timeActions);
+            iCartCtrl->stopControl();
         }
     }
 
@@ -906,7 +907,6 @@ protected:
             x=H*x; x.pop_back();
 
             runThroughWayPoints(*xd,x.subVector(0,2),*od);
-
             resPush = true;
         }
         else
