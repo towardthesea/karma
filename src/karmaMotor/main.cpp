@@ -520,7 +520,7 @@ protected:
         if (armType =="left")
         {
             yInfo("left hand \n");
-            for (int i=10; i <encodersL.size(); i ++)
+            for (size_t i=10; i <encodersL.length(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
                 int mode;
@@ -547,7 +547,7 @@ protected:
         else if (armType == "right")
         {
             yInfo("right hand \n");
-            for (int i=10; i <encodersR.size(); i ++)
+            for (size_t i=10; i <encodersR.length(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
                 int mode;
@@ -595,7 +595,7 @@ protected:
     {
         if (armType =="left")
         {
-            for (int i=11; i <encodersL.size(); i ++)
+            for (size_t i=11; i <encodersL.length(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
             }
@@ -604,7 +604,7 @@ protected:
         }
         else if (armType == "right")
         {
-            for (int i=11; i <encodersR.size(); i ++)
+            for (size_t i=11; i <encodersR.length(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
             }
@@ -670,7 +670,7 @@ protected:
         Vector d = xf-xs;
         double tMove = 2.0*timeActions;
         double distMove = norm(d);
-        int segN = std::max(1,floor(distMove/segL));
+        int segN = std::max(1,int(distMove/segL));
         double segT = std::max(0.5,tMove/segN);
 
         for (int i=1; (i<=segN) && !interrupting; i++)
