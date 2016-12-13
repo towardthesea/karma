@@ -525,7 +525,7 @@ protected:
                 ctrlModeL->setPositionMode(i);
                 int mode;
                 ctrlModeL->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %ud: ",i);
+                yInfo("ctrlMode of joint %lud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
@@ -552,7 +552,7 @@ protected:
                 ctrlModeR->setPositionMode(i);
                 int mode;
                 ctrlModeR->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %ud: ",i);
+                yInfo("ctrlMode of joint %lud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
