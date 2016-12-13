@@ -520,12 +520,12 @@ protected:
         if (armType =="left")
         {
             yInfo("left hand \n");
-            for (int i=10; i <encodersL.size(); i ++)
+            for (size_t i=10; i <encodersL.length(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
                 int mode;
                 ctrlModeL->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %ud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
@@ -547,12 +547,12 @@ protected:
         else if (armType == "right")
         {
             yInfo("right hand \n");
-            for (int i=10; i <encodersR.size(); i ++)
+            for (size_t i=10; i <encodersR.length(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
                 int mode;
                 ctrlModeR->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %d: ",i);
+                yInfo("ctrlMode of joint %ud: ",i);
                 switch (mode)
                 {
                     case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
@@ -595,7 +595,7 @@ protected:
     {
         if (armType =="left")
         {
-            for (int i=11; i <encodersL.size(); i ++)
+            for (size_t i=11; i <encodersL.length(); i ++)
             {
                 ctrlModeL->setPositionMode(i);
             }
@@ -604,7 +604,7 @@ protected:
         }
         else if (armType == "right")
         {
-            for (int i=11; i <encodersR.size(); i ++)
+            for (size_t i=11; i <encodersR.length(); i ++)
             {
                 ctrlModeR->setPositionMode(i);
             }
@@ -657,6 +657,37 @@ protected:
             weightsPart.addDouble(0.0);
             weightsPart.addDouble(elbow_weight);
             iCartCtrl->tweakSet(tweakOptions);
+        }
+    }
+
+    /************************************************************************/
+    void runThroughWayPoints(const Vector& xs, const Vector& xf,
+                             const Vector& o)
+    {
+        // Divide overall movement into segment-by-segment movements, with:
+        // segL (segmentLength), segN (number of segment), segT (time of each segment)
+
+        Vector d = xf-xs;
+        double tMove = 2.0*timeActions;
+        double distMove = norm(d);
+        int segN = std::max(1,int(distMove/segL));
+        double segT = std::max(0.4,tMove/segN);
+
+        for (int i=1; (i<=segN) && !interrupting; i++)
+        {
+            Vector xWp = xs + (i*segL/distMove)*d;
+            yInfo("moving to: xWp=(%s); o=(%s)\n",
+                  xWp.toString(3,3).c_str(),o.toString(3,3).c_str());
+            iCartCtrl->goToPoseSync(xWp,o,segT);
+            Time::delay(segT);
+        }
+
+        if (!interrupting)
+        {
+            yInfo("moving to: x=(%s); o=(%s)\n",
+                  xf.toString(3,3).c_str(),o.toString(3,3).c_str());
+            iCartCtrl->goToPoseSync(xf,o,segT);
+            iCartCtrl->waitMotionDone(0.1,timeActions);
         }
     }
 
@@ -868,45 +899,14 @@ protected:
                 iCartCtrl->waitMotionDone(0.1,4.0);
             }
 
-            // Pushing movement: divide into segment-by-segment movement, with:
-            // segL (segmentLength), segN (number of segment), segT (time of each segment)
-            if (!interrupting)
-            {
-                Matrix H=axis2dcm(*od);
-                Vector center=c; center.push_back(1.0);
-                H.setCol(3,center);
-                Vector x=-1.0*frame.getCol(3); x[3]=1.0;
-                x=H*x; x.pop_back();
+            Matrix H=axis2dcm(*od);
+            Vector center=c; center.push_back(1.0);
+            H.setCol(3,center);
+            Vector x=-1.0*frame.getCol(3); x[3]=1.0;
+            x=H*x; x.pop_back();
 
-                // xd: initial position -> xs
-                // x : final position   -> xf
-                Vector xf = x.subVector(0,2);
-                Vector xs = *xd;
-                Vector vel(3,0.0);
-                for (int i=0; i<vel.size(); i++)
-                    vel[i] = xf[i]-xs[i];
-                double distMove = norm(vel);
-                int segN = floor(distMove/segL);
-                double segT = 0.3;
+            runThroughWayPoints(*xd,x.subVector(0,2),*od);
 
-                Vector xWp(3,0.0);
-                for (int i=1; i<=segN; i++)
-                {
-                    for (int j=0; j<xWp.size(); j++)
-                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od->toString(3,3).c_str());
-                    iCartCtrl->goToPoseSync(xWp,*od,timeActions);
-                    yarp::os::Time::delay(segT);
-                }
-
-                if (norm(xWp-xf)>=0.01)
-                {
-                    yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-                    iCartCtrl->goToPoseSync(x,*od,timeActions);
-                }
-                iCartCtrl->waitMotionDone(0.1,timeActions);
-
-            }
             resPush = true;
         }
         else
@@ -1030,7 +1030,6 @@ protected:
 
             xd2=H2.getCol(3).subVector(0,2);
             od2=dcm2axis(H2);
-
         }
 
         // Safe pulling
@@ -1164,38 +1163,7 @@ protected:
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
 
-            // Pulling movement: divide into segment-by-segment movement, with:
-            // segL (segmentLength), segN (number of segment), segT (time of each segment)
-            if (!interrupting)
-            {
-                // xd1 : initial position -> xs
-                // xd2 : final position   -> xf
-                Vector xf = xd2;
-                Vector xs = xd1;
-                Vector vel(3,0.0);
-                for (int i=0; i<vel.size(); i++)
-                    vel[i] = xf[i]-xs[i];
-                double distMove = norm(vel);
-                int segN = floor(distMove/segL);
-                double segT = 0.3;
-
-                Vector xWp(3,0.0);
-                for (int i=1; i<=segN; i++)
-                {
-                    for (int j=0; j<xWp.size(); j++)
-                        xWp[j]= xs[j] + i*segL*vel[j]/distMove;
-                    yInfo("moving to: xWp=(%s); o=(%s)\n",xWp.toString(3,3).c_str(),od2.toString(3,3).c_str());
-                    iCartCtrl->goToPoseSync(xWp,od2,timeActions);
-                    yarp::os::Time::delay(segT);
-                }
-
-                if (norm(xWp-xf)>=0.01)
-                {
-                    yInfo("moving to: x=(%s); o=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
-                    iCartCtrl->goToPoseSync(xd2,od2,timeActions);
-                }
-                iCartCtrl->waitMotionDone(0.1,timeActions);
-            }
+            runThroughWayPoints(xd1,xd2,od2);
         }
 
         iCartCtrl->restoreContext(context);
@@ -1572,7 +1540,7 @@ public:
         timeActions = 1.5;
         handAngle   = 15.0;
         safeMargin  = 0.25; // 25cm
-        segL        = 0.05; //  5cm
+        segL        = 0.03; //  3cm
 
         return true;
     }
