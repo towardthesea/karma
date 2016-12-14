@@ -141,9 +141,9 @@ protected:
     ICartesianControl   *iCartCtrl;
     ICartesianControl   *iCartCtrlOther;
 
-    IPositionControl    *posCtrlR;
-    IPositionControl    *posCtrlL;
-    IPositionControl    *posCtrl;
+    IPositionControl2   *posCtrlR;
+    IPositionControl2   *posCtrlL;
+    IPositionControl2   *posCtrl;
     IEncoders           *encsR;
     IEncoders           *encsL;
     IEncoders           *encs;
@@ -477,151 +477,99 @@ protected:
     /************************************************************************/
     void initHandCtrl()
     {
-        int nj=0;
-        Vector tmp;
-        int i;
+        int nj;
 
         // Right hand
         posCtrlR->getAxes(&nj);
         encodersR.resize(nj);
-        tmp.resize(nj);
         commandR.resize(nj);
-
-        for (i = 0; i < nj; i++) {
-             tmp[i] = 50.0;
-        }
-        posCtrlR->setRefAccelerations(tmp.data());
-
-        for (i = 0; i < nj; i++) {
-            tmp[i] = 30.0;
-            posCtrlR->setRefSpeed(i, tmp[i]);
-        }
 
         // Left hand
         posCtrlL->getAxes(&nj);
         encodersL.resize(nj);
-        tmp.resize(nj);
         commandL.resize(nj);
+    }
 
-        for (i = 0; i < nj; i++) {
-             tmp[i] = 50.0;
-        }
-        posCtrlL->setRefAccelerations(tmp.data());
+    /***************************************************************/
+    bool moveHand(const string& armType, const Vector& cmd)
+    {
+        VectorOf<int> joints,modes;
+        if (armType =="left")
+        {
+            for (size_t i=10; i<encodersL.length(); i++)
+            {
+                joints.push_back(i);
+                modes.push_back(VOCAB_CM_POSITION);
+            }
 
-        for (i = 0; i < nj; i++) {
-            tmp[i] = 30.0;
-            posCtrlL->setRefSpeed(i, tmp[i]);
+            ctrlModeL->setControlModes(joints.size(),joints.getFirst(),
+                                       modes.getFirst());
+            posCtrl = posCtrlL;
         }
+        else
+        {
+            for (size_t i=10; i<encodersR.length(); i++)
+            {
+                joints.push_back(i);
+                modes.push_back(VOCAB_CM_POSITION);
+            }
+
+            ctrlModeR->setControlModes(joints.size(),joints.getFirst(),
+                                       modes.getFirst());
+            posCtrl = posCtrlR;
+        }
+
+        Vector poss=cmd.subVector(10,cmd.length()-1);
+        Vector accs(poss.length(),1e9); // we don't care since it simply limits the velocity
+        Vector vels(poss.length(),50.0);
+
+        posCtrl->setRefAccelerations(joints.size(),joints.getFirst(),accs.data());
+        posCtrl->setRefSpeeds(joints.size(),joints.getFirst(),vels.data());
+        posCtrl->positionMove(joints.size(),joints.getFirst(),poss.data());
+
+        return true;
     }
 
     /************************************************************************/
     bool prepareHandForPull(const string &armType)
     {
-        if (armType =="left")
+        if (armType == "left")
         {
-            yInfo("left hand \n");
-            for (size_t i=10; i <encodersL.length(); i ++)
-            {
-                ctrlModeL->setPositionMode(i);
-                int mode;
-                ctrlModeL->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %lud: ",i);
-                switch (mode)
-                {
-                    case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
-                    case VOCAB_CM_POSITION:        yInfo("POSITION ");         break;
-                    case VOCAB_CM_POSITION_DIRECT: yInfo("POSITION DIRECT ");  break;
-                    case VOCAB_CM_VELOCITY:        yInfo("VELOCITY ");         break;
-                    case VOCAB_CM_MIXED:           yInfo("MIXED POS/VEL");     break;
-                    case VOCAB_CM_TORQUE:          yInfo("TORQUE   ");         break;
-                    case VOCAB_CM_OPENLOOP:        yInfo("OPENLOOP ");         break;
-                    default:
-                    case VOCAB_CM_UNKNOWN:         yInfo("UNKNOWN  ");         break;
-                }
-                cout<<endl;
-            }
-            posCtrl = posCtrlL;
+            yInfo("left hand");
             encsL->getEncoders(encodersL.data());
             command = encodersL;
         }
-        else if (armType == "right")
+        else
         {
-            yInfo("right hand \n");
-            for (size_t i=10; i <encodersR.length(); i ++)
-            {
-                ctrlModeR->setPositionMode(i);
-                int mode;
-                ctrlModeR->getControlMode(i,&mode);
-                yInfo("ctrlMode of joint %lud: ",i);
-                switch (mode)
-                {
-                    case VOCAB_CM_IDLE:            yInfo("IDLE     ");         break;
-                    case VOCAB_CM_POSITION:        yInfo("POSITION ");         break;
-                    case VOCAB_CM_POSITION_DIRECT: yInfo("POSITION DIRECT ");  break;
-                    case VOCAB_CM_VELOCITY:        yInfo("VELOCITY ");         break;
-                    case VOCAB_CM_MIXED:           yInfo("MIXED POS/VEL");     break;
-                    case VOCAB_CM_TORQUE:          yInfo("TORQUE   ");         break;
-                    case VOCAB_CM_OPENLOOP:        yInfo("OPENLOOP ");         break;
-                    default:
-                    case VOCAB_CM_UNKNOWN:         yInfo("UNKNOWN  ");         break;
-                }
-                cout<<endl;
-            }
-            posCtrl = posCtrlR;
+            yInfo("right hand");
             encsR->getEncoders(encodersR.data());
             command = encodersR;
-
         }
 
         if (command.size()>=16)
         {
-            command[10] = 170;
-            command[11] = 20;
-            command[12] = 60;
-            command[13] = 30;
-            command[14] = 60;
-            command[15] = 90;
+            command[10] = 170.0;
+            command[11] = 20.0;
+            command[12] = 60.0;
+            command[13] = 30.0;
+            command[14] = 60.0;
+            command[15] = 90.0;
         }
 
-        yInfo("move fingers \n");
-        posCtrl->positionMove(command.data());
-        yarp::os::Time::delay(2.0);
-
-        return true;
+        yInfo("move fingers");
+        return moveHand(armType,command);
     }
 
     /***************************************************************/
     bool restoreHand(const string& armType)
     {
-        if (armType =="left")
-        {
-            for (size_t i=11; i <encodersL.length(); i ++)
-            {
-                ctrlModeL->setPositionMode(i);
-            }
-            posCtrl = posCtrlL;
-            command = encodersL;
-        }
-        else if (armType == "right")
-        {
-            for (size_t i=11; i <encodersR.length(); i ++)
-            {
-                ctrlModeR->setPositionMode(i);
-            }
-            posCtrl = posCtrlR;
-            command = encodersR;
-        }
-
-        posCtrl->positionMove(command.data());
-        yarp::os::Time::delay(2.0);
-
-        return true;
+        return moveHand(armType,(armType=="left"?encodersL:encodersR));
     }
 
     /***************************************************************/
     bool keepOtherArmSafe()
     {
-        yInfo("Move other arm away for safety!!!\n");
+        yInfo("Move other arm away for safety!!!");
         int contextOther;
         double zSafe = 0.2;
         Vector xCur(3,0.0), oCur(4,0.0);
@@ -635,7 +583,6 @@ protected:
         iCartCtrlOther->deleteContext(contextOther);
 
         return true;
-
     }
 
     /***************************************************************/
@@ -661,8 +608,7 @@ protected:
     }
 
     /************************************************************************/
-    void runThroughWayPoints(const Vector& xs, const Vector& xf,
-                             const Vector& o)
+    void runThroughWayPoints(const Vector& xs, const Vector& xf, const Vector& o)
     {
         // Divide overall movement into segment-by-segment movements, with:
         // segL (segmentLength), segN (number of segment), segT (time of each segment)
@@ -676,7 +622,7 @@ protected:
         for (int i=1; (i<=segN) && !interrupting; i++)
         {
             Vector xWp = xs + (i*segL/distMove)*d;
-            yInfo("moving to: xWp=(%s); o=(%s)\n",
+            yInfo("moving to: xWp=(%s); o=(%s)",
                   xWp.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xWp,o,segT);
             Time::delay(segT);
@@ -684,7 +630,7 @@ protected:
 
         if (!interrupting)
         {
-            yInfo("moving to: x=(%s); o=(%s)\n",
+            yInfo("moving to: x=(%s); o=(%s)",
                   xf.toString(3,3).c_str(),o.toString(3,3).c_str());
             iCartCtrl->goToPoseSync(xf,o,segT);
             iCartCtrl->waitMotionDone(0.1,timeActions);
@@ -750,9 +696,9 @@ protected:
         Vector xd2eps=H2eps.getCol(3).subVector(0,2);
         Vector od2eps=dcm2axis(H2eps);
 
-        yInfo("identified locations...\n");
-        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("identified locations...");
+        yInfo("xd1=(%s) od1=(%s)",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
         // choose the arm
         if (armType=="selectable")
@@ -809,9 +755,9 @@ protected:
         double d1=dist(H1-Hhat1);
         double d2=dist(H2-Hhat2);
 
-        yInfo("solutions...\n");
-        yInfo("#1: xdhat1=(%s) odhat1=(%s); e=%.3f\n",xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),d1);
-        yInfo("#2: xdhat2=(%s) odhat2=(%s); e=%.3f\n",xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),d2);
+        yInfo("solutions...");
+        yInfo("#1: xdhat1=(%s) odhat1=(%s); e=%.3f",xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),d1);
+        yInfo("#2: xdhat2=(%s) odhat2=(%s); e=%.3f",xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),d2);
         yInfo("selection: ");
 
         // compare solutions and choose the best
@@ -873,11 +819,11 @@ protected:
             od=&od1eps;
         }
 
-        yInfo(": xd=(%s); od=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+        yInfo(": xd=(%s); od=(%s)",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
 
         Vector xTemp = *xd;
         double dist_xd = sqrt(xTemp[0]*xTemp[0] + xTemp[1]*xTemp[1]);
-        yInfo("distance from xd to center %f\n", dist_xd);
+        yInfo("distance from xd to center %f", dist_xd);
         bool resPush;
         if (dist_xd>safeMargin && xTemp[0]<=0.0)
         {
@@ -888,14 +834,14 @@ protected:
                 Vector x=*xd+offs;
 
                 keepOtherArmSafe();
-                yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od->toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,*od,timeActions);
                 iCartCtrl->waitMotionDone(0.1,4.0);
             }
             // Going down to initial position for pushing
             if (!interrupting)
             {
-                yInfo("moving to: x=(%s); o=(%s)\n",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)",xd->toString(3,3).c_str(),od->toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(*xd,*od,timeActions);
                 iCartCtrl->waitMotionDone(0.1,4.0);
             }
@@ -967,18 +913,18 @@ protected:
         Vector xd2=H2.getCol(3).subVector(0,2);
         Vector od2=dcm2axis(H2);
 
-        yInfo("identified locations on the sagittal plane...\n");
-        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("identified locations on the sagittal plane...");
+        yInfo("xd1=(%s) od1=(%s)",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
-        yInfo("armType: %s\n", armType.c_str());
-        yInfo("pushHand: %s\n", pushHand.c_str());
+        yInfo("armType: %s", armType.c_str());
+        yInfo("pushHand: %s", pushHand.c_str());
         // choose the arm
         string pushHand0 = pushHand;
         if (armType=="selectable")
         {
             double yObj = c[1]+radius*_c;
-            yInfo("yObj = %f\n",yObj);
+            yInfo("yObj = %f",yObj);
             if (yObj>=0)
             {
                 iCartCtrl = iCartCtrlR;
@@ -1002,8 +948,8 @@ protected:
             iCartCtrl = iCartCtrlR;
             iCartCtrlOther = iCartCtrlL;
         }
-        yInfo("armType: %s\n", armType.c_str());
-        yInfo("pushHand: %s\n", pushHand.c_str());
+        yInfo("armType: %s", armType.c_str());
+        yInfo("pushHand: %s", pushHand.c_str());
 
         // recover the original place: do translation and rotation
         if (c[1]!=0.0)
@@ -1034,18 +980,18 @@ protected:
 
         // Safe pulling
         double dist_xd2 = sqrt(xd2[0]*xd2[0] + xd2[1]*xd2[1]);
-        yInfo("distance from xd2 to center %f\n", dist_xd2);
+        yInfo("distance from xd2 to center %f", dist_xd2);
         if (dist_xd2<safeMargin)
         {
             xd2[0] = sign(c[0]) * sqrt(safeMargin*safeMargin - xd2[1]*xd2[1]);
         }
 
-        yInfo("in-place locations...\n");
-        yInfo("xd1=(%s) od1=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
-        yInfo("xd2=(%s) od2=(%s)\n",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
+        yInfo("in-place locations...");
+        yInfo("xd1=(%s) od1=(%s)",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+        yInfo("xd2=(%s) od2=(%s)",xd2.toString(3,3).c_str(),od2.toString(3,3).c_str());
 
         // Rotate the wrist and change the fingers' angles
-        yInfo("prepare the hand for pulling with *%s* hand...\n",pushHand.c_str());
+        yInfo("prepare the hand for pulling with *%s* hand...",pushHand.c_str());
         prepareHandForPull(pushHand);
 
         // deal with the arm context
@@ -1095,8 +1041,8 @@ protected:
 
         Vector tip_x_out, tip_o_out;
         iCartCtrl->getTipFrame(tip_x_out,tip_o_out);
-        yInfo("tip_x=(%s) tip_o=(%s)\n",tip_x.toString(3,3).c_str(),tip_o.toString(3,3).c_str());
-        yInfo("tip_x_out=(%s) tip_o_out=(%s)\n",tip_x_out.toString(3,3).c_str(),tip_o_out.toString(3,3).c_str());
+        yInfo("tip_x=(%s) tip_o=(%s)",tip_x.toString(3,3).c_str(),tip_o.toString(3,3).c_str());
+        yInfo("tip_x_out=(%s) tip_o_out=(%s)",tip_x_out.toString(3,3).c_str(),tip_o_out.toString(3,3).c_str());
 
         Bottle options;
         Bottle &straightOpt=options.addList();
@@ -1122,24 +1068,24 @@ protected:
 
             double e_x1=norm(xd1-xdhat1);
             double e_o1=norm(od1-odhat1);
-            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
+            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g",
                    xd1.toString(3,3).c_str(),od1.toString(3,3).c_str(),
                    xdhat1.toString(3,3).c_str(),odhat1.toString(3,3).c_str(),
                    e_x1,e_o1);
 
             double e_x2=norm(xd2-xdhat2);
             double e_o2=norm(od2-odhat2);
-            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g\n",
+            yInfo("testing x=(%s); o=(%s) => xhat=(%s); ohat=(%s) ... |e_x|=%g; |e_o|=%g",
                    xd2.toString(3,3).c_str(),od2.toString(3,3).c_str(),
                    xdhat2.toString(3,3).c_str(),odhat2.toString(3,3).c_str(),
                    e_x2,e_o2);
 
             double nearness_penalty=((norm(xdhat1)<0.15)||(norm(xdhat2)<0.15)?10.0:0.0);
-            yInfo("nearness penalty=%g\n",nearness_penalty);
+            yInfo("nearness penalty=%g",nearness_penalty);
             res=e_x1+e_o1+e_x2+e_o2+nearness_penalty;
-            yInfo("final quality=%g\n",res);
+            yInfo("final quality=%g",res);
             string pullTest = (canPull) ? "true" : "false";
-            yInfo("Can pull: %s\n",pullTest.c_str());
+            yInfo("Can pull: %s",pullTest.c_str());
         }
         // execute the movements
         else
@@ -1150,7 +1096,7 @@ protected:
                 Vector x=xd1+offs;
 
                 keepOtherArmSafe();
-                yInfo("moving to: x=(%s); o=(%s)\n",x.toString(3,3).c_str(),od1.toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od1.toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(x,od1,2.0);
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
@@ -1158,7 +1104,7 @@ protected:
             // Going down to initial position for pulling
             if (!interrupting)
             {
-                yInfo("moving to: x=(%s); o=(%s)\n",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
+                yInfo("moving to: x=(%s); o=(%s)",xd1.toString(3,3).c_str(),od1.toString(3,3).c_str());
                 iCartCtrl->goToPoseSync(xd1,od1,1.5);
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
@@ -1507,7 +1453,7 @@ public:
         okR = okR && driverHR.view(ctrlModeR);
 
         if (!okR) {
-            yInfo("Problems acquiring interfaces with right hand\n");
+            yInfo("Problems acquiring interfaces with right hand");
             return 0;
         }
 
@@ -1517,7 +1463,7 @@ public:
         okL = okL && driverHL.view(ctrlModeL);
 
         if (!okL) {
-            yInfo("Problems acquiring interfaces with left hand\n");
+            yInfo("Problems acquiring interfaces with left hand");
             return 0;
         }
 
@@ -1602,7 +1548,7 @@ int main(int argc, char *argv[])
     Network yarp;
     if (!yarp.checkNetwork())
     {
-        yInfo("YARP server not available!\n");
+        yInfo("YARP server not available!");
         return 1;
     }
 
