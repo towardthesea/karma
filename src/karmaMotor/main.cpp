@@ -1,7 +1,7 @@
 /* 
  * Copyright (C) 2012 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
- * Author: Ugo Pattacini
- * email:  ugo.pattacini@iit.it
+ * Authors: Ugo Pattacini, Phuong Nguyen
+ * emails:  <ugo.pattacini@iit.it>, <phuong.nguyen@iit.it>
  * Permission is granted to copy, distribute, and/or modify this program
  * under the terms of the GNU General Public License, version 2 or any
  * later version published by the Free Software Foundation.
@@ -107,15 +107,16 @@ Windows, Linux
 
 #include <cstdio>
 #include <string>
+#include <cmath>
 #include <algorithm>
 
 #include <yarp/os/all.h>
 #include <yarp/dev/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/math/Math.h>
-#include <yarp/os/Time.h>
 
 #include <iCub/ctrl/math.h>
+#include <iCub/ctrl/minJerkCtrl.h>
 
 using namespace std;
 using namespace yarp::os;
@@ -608,34 +609,37 @@ protected:
     }
 
     /************************************************************************/
-    void runThroughWayPoints(const Vector& xs, const Vector& xf, const Vector& o)
+    void setTaskVelocities(const Vector& xs, const Vector& xf)
     {
-        // Divide overall movement into segment-by-segment movements, with:
-        // segL (segmentLength), segN (number of segment), segT (time of each segment)
+        double Ts=0.1;  // controller's sample time [s]
+        double T=4.0;   // how long it takes to move to the target [s]
+        double v_max=0.1;   // max cartesian velocity [m/s]
 
-        Vector d = xf-xs;
-        double tMove = 2.0*timeActions;
-        double distMove = norm(d);
-        int segN = std::max(1,int(distMove/segL));
-        double segT = std::max(0.5,tMove/segN);
+        // instantiate the controller
+        minJerkVelCtrlForIdealPlant ctrl(Ts,xf.length());
 
-        for (int i=1; (i<=segN) && !interrupting; i++)
+        bool done=false;
+        Vector dir=(xf-xs)/norm(xf-xs); // direction to the target
+        while (!interrupting && !done)
         {
-            Vector xWp = xs + (i*segL/distMove)*d;
-            yInfo("moving to: xWp=(%s); o=(%s)",
-                  xWp.toString(3,3).c_str(),o.toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(xWp,o,segT);
-            Time::delay(segT);
+            Vector x,o;
+            iCartCtrl->getPose(x,o);
+
+            Vector e=xf-x;  // compute current distance to the target
+            Vector vel_x=dir*ctrl.computeCmd(T,e);  // control upon the feedback
+
+            // enforce velocity bounds
+            for (size_t i=0; i<vel_x.length(); i++)
+                vel_x[i]=sign(vel_x[i])*std::min(v_max,fabs(vel_x[i]));
+            
+            // call the proper method
+            iCartCtrl->setTaskVelocities(vel_x,Vector(4,0.0));
+            Time::delay(Ts);
+
+            done=(norm(e)<0.01);
         }
 
-        if (!interrupting)
-        {
-            yInfo("moving to: x=(%s); o=(%s)",
-                  xf.toString(3,3).c_str(),o.toString(3,3).c_str());
-            iCartCtrl->goToPoseSync(xf,o,segT);
-            iCartCtrl->waitMotionDone(0.1,timeActions);
-            iCartCtrl->stopControl();
-        }
+        iCartCtrl->stopControl();
     }
 
     /************************************************************************/
@@ -852,7 +856,7 @@ protected:
             Vector x=-1.0*frame.getCol(3); x[3]=1.0;
             x=H*x; x.pop_back();
 
-            runThroughWayPoints(*xd,x.subVector(0,2),*od);
+            setTaskVelocities(*xd,x.subVector(0,2));
             resPush = true;
         }
         else
@@ -1109,7 +1113,7 @@ protected:
                 iCartCtrl->waitMotionDone(0.1,5.0);
             }
 
-            runThroughWayPoints(xd1,xd2,od2);
+            setTaskVelocities(xd1,xd2);
         }
 
         iCartCtrl->restoreContext(context);
