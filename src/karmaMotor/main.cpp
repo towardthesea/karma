@@ -612,7 +612,7 @@ protected:
     void setTaskVelocities(const Vector& xs, const Vector& xf)
     {
         double Ts=0.1;  // controller's sample time [s]
-        double T=4.0;   // how long it takes to move to the target [s]
+        double T=6.0;   // how long it takes to move to the target [s]
         double v_max=0.1;   // max cartesian velocity [m/s]
 
         // instantiate the controller
@@ -630,13 +630,15 @@ protected:
 
             // enforce velocity bounds
             for (size_t i=0; i<vel_x.length(); i++)
-                vel_x[i]=sign(vel_x[i])*std::min(v_max,fabs(vel_x[i]));
-            
+                vel_x[i]=sign(e[i])*std::min(v_max,fabs(vel_x[i]));
+
             // call the proper method
             iCartCtrl->setTaskVelocities(vel_x,Vector(4,0.0));
             Time::delay(Ts);
 
-            done=(norm(e)<0.01);
+            done=(norm(e.subVector(0,1))<0.01);
+            if (done)
+                yDebug("xf= %s; x= %s",xf.toString(3,3).c_str(),x.toString(3,3).c_str());
         }
 
         iCartCtrl->stopControl();
