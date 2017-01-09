@@ -97,6 +97,9 @@ implemented) is running.
  
 - \e /karmaMotor/finder:rpc communicates with the module in 
   charge of solving for the tool's dimensions.
+
+- \e /KarmaMotor/reaching-supervisor/rpc:o sending planning and controlling
+  request to *reaching-supervisor*
  
 \section tested_os_sec Tested OS
 Windows, Linux
@@ -174,6 +177,7 @@ protected:
     RpcClient            finderPort;
     RpcServer            rpcPort;
     Port                 stopPort;
+    RpcClient            reachingPort;  // rpc port to connect to /reaching-supervisor/rpc:i
 
     /************************************************************************/
     double dist(const Matrix &M)
@@ -645,6 +649,36 @@ protected:
     }
 
     /************************************************************************/
+    double askPlannerToMove(const Vector& target, const double& localPlanningTime)
+    {
+        double timeOfExecution = -1.0;
+        Bottle cmd,reply;
+        cmd.addString("run_planner_pos");
+        Bottle &pos = cmd.addList();
+        for (int i=0; i<target.size(); i++)
+        {
+            pos.addDouble(target[i]);
+            yDebug("[askPlannerToMove] target[%d]= %f",i,target[i]);
+        }
+        cmd.addDouble(localPlanningTime);
+        if (reachingPort.write(cmd,reply))
+        {
+//            if (!reply.isNull())
+//            {
+//                timeOfExecution = reply.get(0).asDouble();
+//            }
+            do
+            {
+                yarp::os::Time::delay(0.1);
+                yDebug("[askPlannerToMove] wait");
+            }
+            while (reply.isNull());
+            timeOfExecution = reply.get(0).asDouble();
+        }
+        return timeOfExecution;
+    }
+
+    /************************************************************************/
     bool push(const Vector &c, const double theta, const double radius,
               const string &armType="selectable", const Matrix &frame=eye(4,4))
     {
@@ -841,8 +875,31 @@ protected:
 
                 keepOtherArmSafe();
                 yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(x,*od,timeActions);
-                iCartCtrl->waitMotionDone(0.1,4.0);
+
+                // Use for left arm only
+                if (iCartCtrl==iCartCtrlL)
+                {
+                    yDebug("Testing communicate with supervisor");
+                    double approachTime = askPlannerToMove(x,0.1);
+                    yDebug("Approaching Time: %f",approachTime);
+                    // Use following as "waitMotionDone"
+                    double start = yarp::os::Time::now();
+                    double checkTime;
+                    do
+                    {
+                        yarp::os::Time::delay(0.1);
+                        checkTime = yarp::os::Time::now();
+                        yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
+                    }
+                    while (checkTime-start<1.2*approachTime); // Time to finish motion should be consider longer than expected
+                }
+
+                // Use for right arm only
+                else if (iCartCtrl==iCartCtrlR)
+                {
+                    iCartCtrl->goToPoseSync(x,*od,timeActions);
+                    iCartCtrl->waitMotionDone(0.1,4.0);
+                }
             }
             // Going down to initial position for pushing
             if (!interrupting)
@@ -1481,6 +1538,15 @@ public:
         stopPort.open(("/"+name+"/stop:i").c_str());
         attach(rpcPort);
         stopPort.setReader(*this);
+        reachingPort.open(("/"+name+"/reaching-supervisor/rpc:o").c_str());
+
+        // TODO: Move to script file later!!!!
+        string portSupervisor = "/reaching-supervisor/rpc:i";
+
+        if (yarp::os::Network::connect(reachingPort.getName(),portSupervisor.c_str()))
+            yInfo("[karmaMotor] connected to reaching-supervisor");
+        else
+            yWarning("[karmaMotor] didn't connect to reaching-supervisor");
 
         interrupting=false;
         handUsed="null";
@@ -1522,6 +1588,7 @@ public:
         finderPort.close();
         rpcPort.close();
         stopPort.close();   // close prior to shutting down motor-interfaces
+        reachingPort.close();
 
         driverG.close();
         driverL.close();
