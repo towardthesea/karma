@@ -11,6 +11,7 @@ branches:
   only:
   - master
   - devel
+  - integrate-planner
 
 install:
   - sudo sh -c 'echo "deb http://www.icub.org/ubuntu trusty contrib/science" > /etc/apt/sources.list.d/icub.list'
