@@ -652,6 +652,7 @@ protected:
     double askPlannerToMove(const Vector& target, const double& localPlanningTime)
     {
         double timeOfExecution = -1.0;
+        double replyWaitingTime = 15.0; // Time to wait for reply [s] this is due to planning time
         Bottle cmd,reply;
         cmd.addString("run_planner_pos");
         Bottle &pos = cmd.addList();
@@ -667,12 +668,15 @@ protected:
 //            {
 //                timeOfExecution = reply.get(0).asDouble();
 //            }
+            double start = yarp::os::Time::now();
+            double checkTime;
             do
             {
                 yarp::os::Time::delay(0.1);
+                checkTime = yarp::os::Time::now();
                 yDebug("[askPlannerToMove] wait");
             }
-            while (reply.isNull());
+            while (reply.isNull() && checkTime < 1.1*replyWaitingTime);
             timeOfExecution = reply.get(0).asDouble();
         }
         return timeOfExecution;
@@ -879,19 +883,38 @@ protected:
                 // Use for left arm only
                 if (iCartCtrl==iCartCtrlL)
                 {
-                    yDebug("Testing communicate with supervisor");
-                    double approachTime = askPlannerToMove(x,0.1);
-                    yDebug("Approaching Time: %f",approachTime);
-                    // Use following as "waitMotionDone"
-                    double start = yarp::os::Time::now();
-                    double checkTime;
-                    do
+                    bool done = false;
+                    while (!interrupting && !done)   // This is to check the distance condition
                     {
-                        yarp::os::Time::delay(0.1);
-                        checkTime = yarp::os::Time::now();
-                        yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
+                        yDebug("Testing communicate with supervisor");
+                        double approachTime = askPlannerToMove(x,0.1);
+                        yDebug("Approaching Time: %f",approachTime);
+                        // Use following as "waitMotionDone"
+                        if (approachTime!=-0.1)
+                        {
+                            double start = yarp::os::Time::now();
+                            double checkTime;
+                            do
+                            {
+                                yarp::os::Time::delay(0.1);
+                                checkTime = yarp::os::Time::now();
+                                yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
+                            }
+                            while (interrupting || checkTime-start<1.2*approachTime); // Time to finish motion should be consider longer than expected
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                        Vector xs,os;
+                        iCartCtrl->getPose(xs,os);
+                        Vector e=x-xs;
+                        yDebug("e= %s, norm(e)= %f",e.toString().c_str(), norm(e));
+                        done = (norm(e)<=0.05);
+                        if (done)
+                            yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
                     }
-                    while (checkTime-start<1.2*approachTime); // Time to finish motion should be consider longer than expected
+
                 }
 
                 // Use for right arm only
