@@ -44,7 +44,7 @@ install:
   - sudo make install
   - cd ../../
 
-  - cd karmaWysiwyd
+  - cd karmaWYSIWYD
 
 before_script:
   - mkdir build
