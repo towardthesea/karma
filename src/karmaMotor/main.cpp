@@ -683,6 +683,45 @@ protected:
     }
 
     /************************************************************************/
+    bool approachWithPlanner(const Vector &x)
+    {
+        bool done = false;
+        double doneThreshold = 0.025;
+        double timeCoef = 1.5;
+        while (!interrupting && !done)   // This is to check the distance condition
+        {
+            yDebug("Testing communicate with supervisor");
+            double approachTime = askPlannerToMove(x,0.1);
+            yDebug("Approaching Time: %f",approachTime);
+            // Use following as "waitMotionDone"
+            if (approachTime>0.0)     // approachTime=-1.0 means planner fail, agent needs to ask another time of action
+            {
+                double start = yarp::os::Time::now();
+                double checkTime;
+                do
+                {
+                    yarp::os::Time::delay(0.1);
+                    checkTime = yarp::os::Time::now();
+                    yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
+                }
+                while (interrupting || checkTime-start<timeCoef*approachTime); // Time to finish motion should be consider longer than expected
+            }
+            else if (approachTime==-1.0)
+            {
+                return false;
+            }
+            Vector xs,os;
+            iCartCtrl->getPose(xs,os);
+            Vector e=x-xs;
+            yDebug("e= %s, norm(e)= %f",e.toString().c_str(), norm(e));
+            done = (norm(e)<=doneThreshold);
+            if (done)
+                yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
+        }
+        return done;
+    }
+
+    /************************************************************************/
     bool push(const Vector &c, const double theta, const double radius,
               const string &armType="selectable", const Matrix &frame=eye(4,4))
     {
@@ -880,45 +919,15 @@ protected:
                 keepOtherArmSafe();
                 yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
 
-                // Use for left arm only
-                if (iCartCtrl==iCartCtrlL)
+                // Use for left arm with pushing left only
+                if (iCartCtrl==iCartCtrlL && theta==180)
                 {
-                    bool done = false;
-                    while (!interrupting && !done)   // This is to check the distance condition
-                    {
-                        yDebug("Testing communicate with supervisor");
-                        double approachTime = askPlannerToMove(x,0.1);
-                        yDebug("Approaching Time: %f",approachTime);
-                        // Use following as "waitMotionDone"
-                        if (approachTime>0.0)     // approachTime=-1.0 means planner fail, agent needs to ask another time of action
-                        {
-                            double start = yarp::os::Time::now();
-                            double checkTime;
-                            do
-                            {
-                                yarp::os::Time::delay(0.1);
-                                checkTime = yarp::os::Time::now();
-                                yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
-                            }
-                            while (interrupting || checkTime-start<1.2*approachTime); // Time to finish motion should be consider longer than expected
-                        }
-                        else if (approachTime==-1.0)
-                        {
-                            return false;
-                        }
-                        Vector xs,os;
-                        iCartCtrl->getPose(xs,os);
-                        Vector e=x-xs;
-                        yDebug("e= %s, norm(e)= %f",e.toString().c_str(), norm(e));
-                        done = (norm(e)<=0.05);
-                        if (done)
-                            yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
-                    }
-
+                    if (!approachWithPlanner(x))
+                        return false;
                 }
 
                 // Use for right arm only
-                else if (iCartCtrl==iCartCtrlR)
+                else //if (iCartCtrl==iCartCtrlR)
                 {
                     iCartCtrl->goToPoseSync(x,*od,timeActions);
                     iCartCtrl->waitMotionDone(0.1,4.0);
