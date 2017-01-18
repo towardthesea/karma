@@ -890,7 +890,7 @@ protected:
                         double approachTime = askPlannerToMove(x,0.1);
                         yDebug("Approaching Time: %f",approachTime);
                         // Use following as "waitMotionDone"
-                        if (approachTime!=-0.1)
+                        if (approachTime>0.0)     // approachTime=-1.0 means planner fail, agent needs to ask another time of action
                         {
                             double start = yarp::os::Time::now();
                             double checkTime;
@@ -902,7 +902,7 @@ protected:
                             }
                             while (interrupting || checkTime-start<1.2*approachTime); // Time to finish motion should be consider longer than expected
                         }
-                        else
+                        else if (approachTime==-1.0)
                         {
                             return false;
                         }
