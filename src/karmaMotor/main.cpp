@@ -1573,12 +1573,12 @@ public:
         reachingPort.open(("/"+name+"/reaching-supervisor/rpc:o").c_str());
 
         // TODO: Move to script file later!!!!
-        string portSupervisor = "/reaching-supervisor/rpc:i";
+//        string portSupervisor = "/reaching-supervisor/rpc:i";
 
-        if (yarp::os::Network::connect(reachingPort.getName(),portSupervisor.c_str()))
-            yInfo("[karmaMotor] connected to reaching-supervisor");
-        else
-            yWarning("[karmaMotor] didn't connect to reaching-supervisor");
+//        if (yarp::os::Network::connect(reachingPort.getName(),portSupervisor.c_str()))
+//            yInfo("[karmaMotor] connected to reaching-supervisor");
+//        else
+//            yWarning("[karmaMotor] didn't connect to reaching-supervisor");
 
         interrupting=false;
         handUsed="null";
