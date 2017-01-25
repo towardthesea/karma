@@ -688,7 +688,9 @@ protected:
         bool done = false;
         double doneThreshold = 0.025;
         double timeCoef = 1.5;
-        while (!interrupting && !done)   // This is to check the distance condition
+        unsigned int trialTimeMax = 5;
+        unsigned int trialCount;
+        while (!interrupting && !done && !(trialCount>=trialTimeMax))   // This is to check the distance condition
         {
             yDebug("Testing communicate with supervisor");
             double approachTime = askPlannerToMove(x,0.1);
@@ -717,6 +719,7 @@ protected:
             done = (norm(e)<=doneThreshold);
             if (done)
                 yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
+            trialCount++;
         }
         return done;
     }
