@@ -161,6 +161,7 @@ protected:
     double handAngle;
     double safeMargin;
     double segL;    // segment length of push/pull action to avoid curved movement
+    double planningAngle;   // Angle for pushing with reaching-planner
 
     string pushHand;
     Matrix toolFrame;
@@ -446,6 +447,32 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('p','l','a','n'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            planningAngle = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(planningAngle);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -464,6 +491,8 @@ protected:
                 reply.addString("safeMargin get - [safe] [get]");
                 reply.addString("segmentLength set - [segL] [set] L (m), L is the lenght of the a segment to divide the straight motion");
                 reply.addString("segmentLength get - [segL] [get]");
+                reply.addString("planningAngle set - [plan] [set] angle (deg), angle is the angle of push that will use the reaching-planner and reactCtrl");
+                reply.addString("planningAngle get - [plan] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -664,10 +693,6 @@ protected:
         cmd.addDouble(localPlanningTime);
         if (reachingPort.write(cmd,reply))
         {
-//            if (!reply.isNull())
-//            {
-//                timeOfExecution = reply.get(0).asDouble();
-//            }
             double start = yarp::os::Time::now();
             double checkTime;
             do
@@ -923,7 +948,7 @@ protected:
                 yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
 
                 // Use for left arm with pushing left only
-                if (iCartCtrl==iCartCtrlL && theta==180)
+                if (iCartCtrl==iCartCtrlL && fabs(theta-planningAngle)<=3.0)
                 {
                     if (!approachWithPlanner(x))
                         return false;
@@ -1594,6 +1619,8 @@ public:
         handAngle   = 15.0;
         safeMargin  = 0.25; // 25cm
         segL        = 0.03; //  3cm
+
+        planningAngle = 180.0;
 
         return true;
     }
