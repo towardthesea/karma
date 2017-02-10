@@ -160,8 +160,9 @@ protected:
     double timeActions;
     double handAngle;
     double safeMargin;
-    double segL;    // segment length of push/pull action to avoid curved movement
+    double segL;            // segment length of push/pull action to avoid curved movement
     double planningAngle;   // Angle for pushing with reaching-planner
+    double planningTol;     // Tolerance for approaching motion
 
     string pushHand;
     Matrix toolFrame;
@@ -473,6 +474,32 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('t','o','l','e'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            planningTol = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(planningTol);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -493,6 +520,8 @@ protected:
                 reply.addString("segmentLength get - [segL] [get]");
                 reply.addString("planningAngle set - [plan] [set] angle (deg), angle is the angle of push that will use the reaching-planner and reactCtrl");
                 reply.addString("planningAngle get - [plan] [get]");
+                reply.addString("planningTol set - [tole] [set] tolerance (m), tolerance to stop the reaching with avoidance");
+                reply.addString("planningTol get - [tole] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -711,7 +740,7 @@ protected:
     bool approachWithPlanner(const Vector &x)
     {
         bool done = false;
-        double doneThreshold = 0.025;
+        double doneThreshold = planningTol;
         double timeCoef = 1.5;
         unsigned int trialTimeMax = 5;
         unsigned int trialCount;
@@ -1617,10 +1646,11 @@ public:
 
         timeActions = 1.5;
         handAngle   = 15.0;
-        safeMargin  = 0.25; // 25cm
-        segL        = 0.03; //  3cm
+        safeMargin  = 0.25;     // 25cm
+        segL        = 0.03;     //  3cm
 
         planningAngle = 180.0;
+        planningTol = 0.025;    // 2.5cm
 
         return true;
     }
