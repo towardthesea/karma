@@ -682,6 +682,9 @@ protected:
 
         bool done=false;
         Vector dir=(xf-xs)/norm(xf-xs); // direction to the target
+
+        double start = yarp::os::Time::now();
+        double checkTime;
         while (!interrupting && !done)
         {
             Vector x,o;
@@ -697,8 +700,9 @@ protected:
             // call the proper method
             iCartCtrl->setTaskVelocities(vel_x,Vector(4,0.0));
             Time::delay(Ts);
+            checkTime = yarp::os::Time::now();
 
-            done=(norm(e.subVector(0,1))<0.01);
+            done=(norm(e.subVector(0,1))<0.02 || (checkTime-start)>=10.0);
             if (done)
                 yDebug("xf= %s; x= %s",xf.toString(3,3).c_str(),x.toString(3,3).c_str());
         }
