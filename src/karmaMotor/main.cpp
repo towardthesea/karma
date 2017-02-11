@@ -782,6 +782,7 @@ protected:
     bool push(const Vector &c, const double theta, const double radius,
               const string &armType="selectable", const Matrix &frame=eye(4,4))
     {
+        yInfo("[karmaMotor] push %s %.3f %.3f",c.toString(3,3).c_str(),theta,radius);
         // wrt root frame: frame centered at c with x-axis pointing rightward,
         // y-axis pointing forward and z-axis pointing upward
         Matrix H0(4,4); H0.zero();
@@ -1022,6 +1023,7 @@ protected:
     double draw(bool simulation, const Vector &c, const double theta, const double radius,
                 const double dist, const string &armType, const Matrix &frame=eye(4,4))
     {
+        yInfo("[karmaMotor] draw %s %.3f %.3f %.3f",c.toString(3,3).c_str(),theta,radius,dist);
         // c0 is the projection of c on the sagittal plane
         Vector c_sag=c;
         c_sag[1]=0.0;
