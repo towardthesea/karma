@@ -702,9 +702,12 @@ protected:
             Time::delay(Ts);
             checkTime = yarp::os::Time::now();
 
-            done=(norm(e.subVector(0,1))<0.02 || (checkTime-start)>=10.0);
+            done=(norm(e.subVector(0,1))<0.02 || (checkTime-start)>=15.0);
             if (done)
+            {
                 yDebug("xf= %s; x= %s",xf.toString(3,3).c_str(),x.toString(3,3).c_str());
+                yDebug("checktime %f",checkTime-start);
+            }
         }
 
         iCartCtrl->stopControl();
