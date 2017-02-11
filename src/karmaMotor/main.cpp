@@ -674,7 +674,7 @@ protected:
     void setTaskVelocities(const Vector& xs, const Vector& xf)
     {
         double Ts=0.1;  // controller's sample time [s]
-        double T=6.0;   // how long it takes to move to the target [s]
+        double T=4.0;   // how long it takes to move to the target [s]
         double v_max=0.1;   // max cartesian velocity [m/s]
 
         // instantiate the controller
@@ -734,7 +734,7 @@ protected:
                 checkTime = yarp::os::Time::now();
                 yDebug("[askPlannerToMove] wait");
             }
-            while (reply.isNull() && checkTime < 1.1*replyWaitingTime);
+            while (reply.isNull() && (checkTime-start) < 1.1*replyWaitingTime);
             timeOfExecution = reply.get(0).asDouble();
         }
         return timeOfExecution;
