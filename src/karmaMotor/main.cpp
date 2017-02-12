@@ -488,14 +488,30 @@ protected:
                             planningTol = payload.get(0).asDouble();
                             reply.addVocab(ack);
                         }
+                        else
+                            reply.addVocab(nack);
                     }
                     else if (tag==Vocab::encode("get"))
                     {
                         reply.addVocab(ack);
                         reply.addDouble(planningTol);
                     }
+                    else
+                        reply.addVocab(nack);
                 }
 
+                break;
+            }
+
+            //-----------------
+            case VOCAB4('s','t','o','p'):
+            {
+//            if (command.size()>1)
+//            {
+                if (stopReactCtrl())
+                    reply.addVocab(ack);
+                else
+                    reply.addVocab(nack);
                 break;
             }
 
@@ -714,6 +730,22 @@ protected:
     }
 
     /************************************************************************/
+    bool stopReactCtrl()
+    {
+        Bottle cmd,reply;
+        cmd.addString("stop");
+        if (reachingPort.write(cmd,reply))
+        {
+            if (!reply.isNull())
+                return reply.get(0).asBool();
+            else
+                return false;
+        }
+        else
+            return false;
+    }
+
+    /************************************************************************/
     double askPlannerToMove(const Vector& target, const double& localPlanningTime)
     {
         double timeOfExecution = -1.0;
@@ -782,6 +814,7 @@ protected:
                 yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
             trialCount++;
         }
+        stopReactCtrl();
         return done;
     }
 
@@ -984,15 +1017,13 @@ protected:
                 keepOtherArmSafe();
                 yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
 
-                // Use for left arm with pushing left only
+                // Use for left arm with pushing left only (planningAngle = 180)
                 if (iCartCtrl==iCartCtrlL && fabs(theta-planningAngle)<=3.0)
                 {
                     if (!approachWithPlanner(x))
                         return false;
                 }
-
-                // Use for right arm only
-                else //if (iCartCtrl==iCartCtrlR)
+                else
                 {
                     iCartCtrl->goToPoseSync(x,*od,timeActions);
                     iCartCtrl->waitMotionDone(0.1,4.0);
@@ -1659,7 +1690,7 @@ public:
         segL        = 0.03;     //  3cm
 
         planningAngle = 180.0;
-        planningTol = 0.025;    // 2.5cm
+        planningTol = 0.04;     // 4cm
 
         return true;
     }
