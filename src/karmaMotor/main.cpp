@@ -1686,7 +1686,7 @@ public:
 
         timeActions = 1.5;
         handAngle   = 15.0;
-        safeMargin  = 0.25;     // 25cm
+        safeMargin  = 0.20;     // 25cm
         segL        = 0.03;     //  3cm
 
         planningAngle = -90.0;
