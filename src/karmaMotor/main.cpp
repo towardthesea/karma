@@ -1689,7 +1689,7 @@ public:
         safeMargin  = 0.25;     // 25cm
         segL        = 0.03;     //  3cm
 
-        planningAngle = 180.0;
+        planningAngle = -90.0;
         planningTol = 0.04;     // 4cm
 
         return true;
