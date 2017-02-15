@@ -97,6 +97,9 @@ implemented) is running.
  
 - \e /karmaMotor/finder:rpc communicates with the module in 
   charge of solving for the tool's dimensions.
+
+- \e /KarmaMotor/reaching-supervisor/rpc:o sending planning and controlling
+  request to *reaching-supervisor*
  
 \section tested_os_sec Tested OS
 Windows, Linux
@@ -157,7 +160,9 @@ protected:
     double timeActions;
     double handAngle;
     double safeMargin;
-    double segL;    // segment length of push/pull action to avoid curved movement
+    double segL;            // segment length of push/pull action to avoid curved movement
+    double planningAngle;   // Angle for pushing with reaching-planner
+    double planningTol;     // Tolerance for approaching motion
 
     string pushHand;
     Matrix toolFrame;
@@ -174,6 +179,7 @@ protected:
     RpcClient            finderPort;
     RpcServer            rpcPort;
     Port                 stopPort;
+    RpcClient            reachingPort;  // rpc port to connect to /reaching-supervisor/rpc:i
 
     /************************************************************************/
     double dist(const Matrix &M)
@@ -442,6 +448,74 @@ protected:
             }
 
             //-----------------
+            case VOCAB4('p','l','a','n'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            planningAngle = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(planningAngle);
+                    }
+                }
+
+                break;
+            }
+
+            //-----------------
+            case VOCAB4('t','o','l','e'):
+            {
+                if (command.size()>1)
+                {
+                    Bottle subcommand=command.tail();
+                    int tag=subcommand.get(0).asVocab();
+                    if (tag==Vocab::encode("set"))
+                    {
+                        Bottle payload=subcommand.tail();
+                        if (payload.size()>=1)
+                        {
+                            planningTol = payload.get(0).asDouble();
+                            reply.addVocab(ack);
+                        }
+                        else
+                            reply.addVocab(nack);
+                    }
+                    else if (tag==Vocab::encode("get"))
+                    {
+                        reply.addVocab(ack);
+                        reply.addDouble(planningTol);
+                    }
+                    else
+                        reply.addVocab(nack);
+                }
+
+                break;
+            }
+
+            //-----------------
+            case VOCAB4('s','t','o','p'):
+            {
+//            if (command.size()>1)
+//            {
+                if (stopReactCtrl())
+                    reply.addVocab(ack);
+                else
+                    reply.addVocab(nack);
+                break;
+            }
+
+            //-----------------
             case VOCAB4('h','e','l','p'):
             {
                 reply.addVocab(Vocab::encode("many"));
@@ -460,6 +534,10 @@ protected:
                 reply.addString("safeMargin get - [safe] [get]");
                 reply.addString("segmentLength set - [segL] [set] L (m), L is the lenght of the a segment to divide the straight motion");
                 reply.addString("segmentLength get - [segL] [get]");
+                reply.addString("planningAngle set - [plan] [set] angle (deg), angle is the angle of push that will use the reaching-planner and reactCtrl");
+                reply.addString("planningAngle get - [plan] [get]");
+                reply.addString("planningTol set - [tole] [set] tolerance (m), tolerance to stop the reaching with avoidance");
+                reply.addString("planningTol get - [tole] [get]");
                 reply.addString("help - produces this help.");
                 reply.addVocab(ack);
                 break;
@@ -612,7 +690,7 @@ protected:
     void setTaskVelocities(const Vector& xs, const Vector& xf)
     {
         double Ts=0.1;  // controller's sample time [s]
-        double T=6.0;   // how long it takes to move to the target [s]
+        double T=4.0;   // how long it takes to move to the target [s]
         double v_max=0.1;   // max cartesian velocity [m/s]
 
         // instantiate the controller
@@ -640,18 +718,111 @@ protected:
             Time::delay(Ts);
             checkTime = yarp::os::Time::now();
 
-            done=(norm(e.subVector(0,1))<0.02 || (checkTime-start)>=10.0);
+            done=(norm(e.subVector(0,1))<0.02 || (checkTime-start)>=15.0);
             if (done)
+            {
                 yDebug("xf= %s; x= %s",xf.toString(3,3).c_str(),x.toString(3,3).c_str());
+                yDebug("checktime %f",checkTime-start);
+            }
         }
 
         iCartCtrl->stopControl();
     }
 
     /************************************************************************/
+    bool stopReactCtrl()
+    {
+        Bottle cmd,reply;
+        cmd.addString("stop");
+        if (reachingPort.write(cmd,reply))
+        {
+            if (!reply.isNull())
+                return reply.get(0).asBool();
+            else
+                return false;
+        }
+        else
+            return false;
+    }
+
+    /************************************************************************/
+    double askPlannerToMove(const Vector& target, const double& localPlanningTime)
+    {
+        double timeOfExecution = -1.0;
+        double replyWaitingTime = 15.0; // Time to wait for reply [s] this is due to planning time
+        Bottle cmd,reply;
+        cmd.addString("run_planner_pos");
+        Bottle &pos = cmd.addList();
+        for (int i=0; i<target.size(); i++)
+        {
+            pos.addDouble(target[i]);
+            yDebug("[askPlannerToMove] target[%d]= %f",i,target[i]);
+        }
+        cmd.addDouble(localPlanningTime);
+        if (reachingPort.write(cmd,reply))
+        {
+            double start = yarp::os::Time::now();
+            double checkTime;
+            do
+            {
+                yarp::os::Time::delay(0.1);
+                checkTime = yarp::os::Time::now();
+                yDebug("[askPlannerToMove] wait");
+            }
+            while (reply.isNull() && (checkTime-start) < 1.1*replyWaitingTime);
+            timeOfExecution = reply.get(0).asDouble();
+        }
+        return timeOfExecution;
+    }
+
+    /************************************************************************/
+    bool approachWithPlanner(const Vector &x)
+    {
+        bool done = false;
+        double doneThreshold = planningTol;
+        double timeCoef = 1.5;
+        unsigned int trialTimeMax = 5;
+        unsigned int trialCount;
+        while (!interrupting && !done && !(trialCount>=trialTimeMax))   // This is to check the distance condition
+        {
+            yDebug("Testing communicate with supervisor");
+            double approachTime = askPlannerToMove(x,0.1);
+            yDebug("Approaching Time: %f",approachTime);
+            // Use following as "waitMotionDone"
+            if (approachTime>0.0)     // approachTime=-1.0 means planner fail, agent needs to ask another time of action
+            {
+                double start = yarp::os::Time::now();
+                double checkTime;
+                do
+                {
+                    yarp::os::Time::delay(0.1);
+                    checkTime = yarp::os::Time::now();
+                    yDebug("[karmaMotor] Time of %f(s): moving arm with reactCtrl",checkTime-start);
+                }
+                while (interrupting || checkTime-start<timeCoef*approachTime); // Time to finish motion should be consider longer than expected
+            }
+            else if (approachTime==-1.0)
+            {
+                return false;
+            }
+            Vector xs,os;
+            iCartCtrl->getPose(xs,os);
+            Vector e=x-xs;
+            yDebug("e= %s, norm(e)= %f",e.toString().c_str(), norm(e));
+            done = (norm(e)<=doneThreshold);
+            if (done)
+                yDebug("x= %s; xs= %s",x.toString(3,3).c_str(),xs.toString(3,3).c_str());
+            trialCount++;
+        }
+        stopReactCtrl();
+        return done;
+    }
+
+    /************************************************************************/
     bool push(const Vector &c, const double theta, const double radius,
               const string &armType="selectable", const Matrix &frame=eye(4,4))
     {
+        yInfo("[karmaMotor] push %s %.3f %.3f",c.toString(3,3).c_str(),theta,radius);
         // wrt root frame: frame centered at c with x-axis pointing rightward,
         // y-axis pointing forward and z-axis pointing upward
         Matrix H0(4,4); H0.zero();
@@ -845,8 +1016,18 @@ protected:
 
                 keepOtherArmSafe();
                 yInfo("moving to: x=(%s); o=(%s)",x.toString(3,3).c_str(),od->toString(3,3).c_str());
-                iCartCtrl->goToPoseSync(x,*od,timeActions);
-                iCartCtrl->waitMotionDone(0.1,4.0);
+
+                // Use for left arm with pushing left only (planningAngle = 180)
+                if (iCartCtrl==iCartCtrlL && fabs(theta-planningAngle)<=3.0)
+                {
+                    if (!approachWithPlanner(x))
+                        return false;
+                }
+                else
+                {
+                    iCartCtrl->goToPoseSync(x,*od,timeActions);
+                    iCartCtrl->waitMotionDone(0.1,4.0);
+                }
             }
             // Going down to initial position for pushing
             if (!interrupting)
@@ -880,6 +1061,7 @@ protected:
     double draw(bool simulation, const Vector &c, const double theta, const double radius,
                 const double dist, const string &armType, const Matrix &frame=eye(4,4))
     {
+        yInfo("[karmaMotor] draw %s %.3f %.3f %.3f",c.toString(3,3).c_str(),theta,radius,dist);
         // c0 is the projection of c on the sagittal plane
         Vector c_sag=c;
         c_sag[1]=0.0;
@@ -1485,6 +1667,15 @@ public:
         stopPort.open(("/"+name+"/stop:i").c_str());
         attach(rpcPort);
         stopPort.setReader(*this);
+        reachingPort.open(("/"+name+"/reaching-supervisor/rpc:o").c_str());
+
+        // TODO: Move to script file later!!!!
+//        string portSupervisor = "/reaching-supervisor/rpc:i";
+
+//        if (yarp::os::Network::connect(reachingPort.getName(),portSupervisor.c_str()))
+//            yInfo("[karmaMotor] connected to reaching-supervisor");
+//        else
+//            yWarning("[karmaMotor] didn't connect to reaching-supervisor");
 
         interrupting=false;
         handUsed="null";
@@ -1495,8 +1686,11 @@ public:
 
         timeActions = 1.5;
         handAngle   = 15.0;
-        safeMargin  = 0.25; // 25cm
-        segL        = 0.03; //  3cm
+        safeMargin  = 0.20;     // 25cm
+        segL        = 0.03;     //  3cm
+
+        planningAngle = -90.0;
+        planningTol = 0.04;     // 4cm
 
         return true;
     }
@@ -1526,6 +1720,7 @@ public:
         finderPort.close();
         rpcPort.close();
         stopPort.close();   // close prior to shutting down motor-interfaces
+        reachingPort.close();
 
         driverG.close();
         driverL.close();
