@@ -17,6 +17,10 @@ It is then adapted to implement the push/pull action with dynamic obstacle avoid
   - [react-controll](https://github.com/robotology/react-control)
   - [peripersonal space](https://github.com/robotology/peripersonal-space)
 
+## Pipeline
+
+<img src="https://github.com/towardthesea/karmaWYSIWYD/blob/master/misc/karmaWYSIWYD_planner_reactCtrl_PPS.png"/>
+
 ## Documentation
 
 Online documentation is available here: [http://robotology.github.com/karma](http://robotology.github.com/karma).
