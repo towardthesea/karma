@@ -1,8 +1,8 @@
 KARMA
 =====
 
-Modules was originally designed for experimenting affordance learning with the iCub [here](https://github.com/robotology/karma).
-It is adapted to implement the push/pull action with dynamic obstacle avoidance.
+Modules was originally designed for experimenting affordance learning with the iCub [here](https://github.com/robotology/karma).  
+It is then adapted to implement the push/pull action with dynamic obstacle avoidance.
 
 ## Installation
 
@@ -10,9 +10,8 @@ It is adapted to implement the push/pull action with dynamic obstacle avoidance.
 - [YARP](https://github.com/robotology/yarp)
 - [iCub](https://github.com/robotology/icub-main)
 - [icub-contrib-common](https://github.com/robotology/icub-contrib-common)
-- [OpenCV](http://opencv.org/downloads.html)
-- [Ipopt](http://wiki.icub.org/wiki/Installing_IPOPT)
-
+- [OpenCV](http://opencv.org/downloads.html)  
+- [Ipopt](http://wiki.icub.org/wiki/Installing_IPOPT)  
 - New
   - [reaching-planner](https://github.com/robotology-playground/reaching-planner)
   - [react-controll](https://github.com/robotology/react-control)
