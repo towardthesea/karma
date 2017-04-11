@@ -1,4 +1,4 @@
-KARMA [![Build Status](https://travis-ci.org/towardthesea/karmaWYSIWYD.svg?branch=master)](https://travis-ci.org/towardthesea/karmaWYSIWYD)
+KARMAWYSIWYD [![Build Status](https://travis-ci.org/towardthesea/karmaWYSIWYD.svg?branch=master)](https://travis-ci.org/towardthesea/karmaWYSIWYD)
 =====
 
 Modules was originally designed for experimenting affordance learning with the iCub [here](https://github.com/robotology/karma).  
